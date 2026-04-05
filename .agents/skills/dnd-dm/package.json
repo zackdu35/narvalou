@@ -1,0 +1,14 @@
+{
+  "name": "dnd-dm-skill",
+  "version": "1.0.0",
+  "description": "D&D Dungeon Master skill with text-to-speech for NPC voices",
+  "type": "module",
+  "scripts": {
+    "speak": "node scripts/speak-npc.js"
+  },
+  "dependencies": {
+    "@elevenlabs/elevenlabs-js": "^2.22.0",
+    "@supabase/supabase-js": "^2.101.1",
+    "dotenv": "^16.4.5"
+  }
+}
