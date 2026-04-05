@@ -78,9 +78,10 @@ This guide covers best practices for running published D&D adventures effectivel
 - Update the `live_game` board with the current location and image via `scripts/updateLive.js`.
 - Ensure character HP and status are synchronized before starting.
 
-**Get player input**:
-- "What's your first action?"
-- "Who's taking point?"
+**Get player input (The Participation Rule)**:
+- **Don't do the work for them**: Describe the situation, not their reaction.
+- **Ask Everyone**: Don't just ask the group. Ask individually: "Et toi [Nom], tu fais quoi ?"
+- "Who's taking point? @CharacterName, what's your first move?"
 
 ### Middle (Main Gameplay)
 
@@ -341,10 +342,12 @@ DM (thinking: There's no blacksmith in this section...):
 
 ### Player Engagement
 
-**Spotlight rotation**:
-- Give each player moments to shine
-- Ask quieter players directly: "What is [character] doing?"
-- Let different skills matter
+**Spotlight rotation & Active Participation**:
+- **Don't hold their hand**: Avoid leading questions that suggest the answer. Let them struggle a bit with the environment or puzzles.
+- **Ask each player directly**: "Et toi @Nom, tu fais quoi ?" ensure everyone participates in every scene.
+- Give each player moments to shine.
+- Ask quieter players directly.
+- Let different skills matter.
 
 **Build tension**:
 - Describe danger before it strikes

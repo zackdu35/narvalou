@@ -202,6 +202,12 @@ When calling `speakTerm.js` or `update-live.js` via the terminal:
 - **Emojis**: You ARE allowed and encouraged to use emojis to add flavor to your messages (e.g., 🍺, ⚔️, 🌲).
 - **Mentions**: When you cite a player's character, use the format `@CharacterName` (e.g., `@DiAz`, `@Valmir`). These will be highlighted in yellow in the interface.
 
+#### 👥 THE PARTICIPATION RULE (GOLDEN RULE)
+- **Don't do the work**: DON'T narrate how they react or if they find the lever too easily. Let them try.
+- **Ask Everyone**: Don't just ask the group "What do you do?". Ask each player individually: "Et toi @Nom, tu fais quoi ?".
+- **Goal**: Ensure everyone participates in every scene and session.
+- **Immersion**: Mention their names and ask for specific actions.
+
 #### 🕵️‍♂️ Monitoring (The "Lighthouse")
 To "hear" what players are saying, you MUST always have the monitoring bridge running in a persistent terminal:
 ```bash
@@ -553,10 +559,11 @@ What do you do?
 
 1. **Read ahead**: Know the next 2-3 encounters
 2. **Take notes**: You can't remember everything
-3. **Engage players**: Ask "What does your character do?"
-4. **Build atmosphere**: Use sound effects and descriptions
-5. **Be flexible**: Players will surprise you - roll with it
-6. **Have fun**: Your enthusiasm is contagious!
+3. **Engage every player**: Don't just ask "What do you do?" to the group. Ask each person: "Et toi @Nom, tu fais quoi ?".
+4. **Don't over-explain**: Don't chew the work for them. Let them search, think, and explore.
+5. **Build atmosphere**: Use sound effects and descriptions
+6. **Be flexible**: Players will surprise you - roll with it
+7. **Have fun**: Your enthusiasm is contagious!
 
 ---
 
