@@ -6,14 +6,41 @@ function App() {
   const [data, setData] = useState(campaignData)
   const [selectedSession, setSelectedSession] = useState<any>(null)
   const [currentStep, setCurrentStep] = useState(0)
+  
+  // Live Mode states
+  const [isLiveMode, setIsLiveMode] = useState(false)
+  const [liveData, setLiveData] = useState<any>(null)
+  const [lastFetched, setLastFetched] = useState(Date.now())
 
   useEffect(() => {
     setData(campaignData)
   }, [])
 
+  // Live Mode Polling
+  useEffect(() => {
+    let interval: any;
+    if (isLiveMode) {
+      const fetchLive = async () => {
+        try {
+          const res = await fetch('/live.json?t=' + Date.now()) // Buster cache
+          const jsonData = await res.json()
+          setLiveData(jsonData)
+          setLastFetched(Date.now())
+        } catch (err) {
+          console.error("Erreur lors de la récupération du live:", err)
+        }
+      }
+      
+      fetchLive()
+      interval = setInterval(fetchLive, 5000) // Poll every 5 seconds
+    }
+    return () => clearInterval(interval)
+  }, [isLiveMode])
+
   const openSession = (session: any) => {
     setSelectedSession(session)
     setCurrentStep(0)
+    setIsLiveMode(false)
   }
 
   const nextStep = () => {
@@ -28,8 +55,105 @@ function App() {
     }
   }
 
+  if (isLiveMode && liveData) {
+    return (
+      <div className="app">
+        <button className="live-toggle-btn active" onClick={() => setIsLiveMode(false)}>
+          <span className="live-indicator-dot pulsing"></span>
+          QUITTER LE LIVE
+        </button>
+
+        <div className="live-view-container">
+          <div className="container" style={{ marginBottom: '40px', textAlign: 'center' }}>
+            <h1 style={{ fontSize: '2.5rem', marginBottom: '10px' }}>Session en cours</h1>
+            <div className="live-location">
+              <span style={{ fontSize: '1.2rem' }}>📍</span> {liveData.currentLocation}
+            </div>
+          </div>
+
+          <div className="live-main-grid">
+            <div className="live-scene-card">
+              <div className="live-image-wrapper">
+                {liveData.currentScene.isGenerating && (
+                  <div className="generating-overlay">
+                    <div className="spinner"></div>
+                    <p style={{ fontFamily: 'Cinzel', letterSpacing: '2px', fontSize: '0.8rem' }}>Visualisation en cours...</p>
+                  </div>
+                )}
+                <img 
+                  src={liveData.currentScene.image} 
+                  alt="Scène actuelle" 
+                  key={liveData.currentScene.image}
+                  style={{ opacity: liveData.currentScene.isGenerating ? 0.3 : 1 }}
+                  onError={(e) => { e.currentTarget.src = 'https://via.placeholder.com/800x450/1a1a1f/d4af37?text=Scène+D%26D+en+direct' }}
+                />
+              </div>
+              <div className="live-caption-box">
+                <p className="live-description">
+                  "{liveData.currentScene.description}"
+                </p>
+              </div>
+            </div>
+
+            <div className="live-sidebar">
+              <div className="sidebar-panel">
+                <h4>Statut du Groupe</h4>
+                <div className="party-status-list">
+                  {liveData.partyStatus.map((char: any) => {
+                    const originalChar = data.characters.find(c => c.id === char.id)
+                    const hpPercent = (char.hp / (originalChar?.hp.max || 10)) * 100
+                    return (
+                      <div key={char.id} className="status-row">
+                        <div className="status-header">
+                          <span>{originalChar?.name || char.id}</span>
+                          <span style={{ color: hpPercent < 30 ? '#ff4d4d' : '#2ecc71' }}>{char.hp} PV</span>
+                        </div>
+                        <div className="hp-bar-bg">
+                          <div 
+                            className="hp-bar-fill" 
+                            style={{ 
+                              width: `${hpPercent}%`,
+                              backgroundColor: hpPercent < 30 ? '#ff4d4d' : '#2ecc71'
+                            }}
+                          ></div>
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: '#666', marginTop: '2px' }}>
+                          État: {char.status}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div className="sidebar-panel">
+                <h4>Derniers Événements</h4>
+                <ul className="event-feed">
+                  {liveData.recentEvents.map((evt: string, i: number) => (
+                    <li key={i} className="event-item">{evt}</li>
+                  ))}
+                </ul>
+              </div>
+
+              <div style={{ textAlign: 'center', fontSize: '0.7rem', color: '#444' }}>
+                Dernière mise à jour: {new Date(lastFetched).toLocaleTimeString()}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="app">
+      {!isLiveMode && (
+        <button className="live-toggle-btn" onClick={() => setIsLiveMode(true)}>
+          <span className="live-indicator-dot"></span>
+          VOIR LE DIRECT
+        </button>
+      )}
+
       {/* Detail View / Modal */}
       {selectedSession && (
         <div className="modal-overlay" onClick={() => setSelectedSession(null)}>
@@ -60,7 +184,7 @@ function App() {
                       </button>
                       
                       <div className="carousel-viewport">
-                        <div className="story-step active">
+                        <div className="story-step active" key={currentStep}>
                           <div className="story-img-container">
                             <img 
                               src={selectedSession.story[currentStep].url} 
@@ -227,7 +351,7 @@ function App() {
       </div>
 
       <footer style={{ background: '#111', padding: '60px 0', textAlign: 'center', marginTop: '100px', borderTop: '1px solid #222' }}>
-        <p style={{ color: '#555', fontSize: '0.8rem', letterSpacing: '2px', textTransform: 'uppercase' }}>Géré par le module D&D DM v1.5</p>
+        <p style={{ color: '#555', fontSize: '0.8rem', letterSpacing: '2px', textTransform: 'uppercase' }}>Géré par le module D&D DM v1.5 - Mode Live {liveData?.active ? 'Disponible' : 'Indisponible'}</p>
       </footer>
       
       <style>{`

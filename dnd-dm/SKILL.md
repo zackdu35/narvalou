@@ -175,7 +175,32 @@ During gameplay:
 
    **Example Rest Rule**: After a Long Rest, you MUST update all character sheets to reset PV to PV Max and restore all spell slots.
 
-4. **Improvise when needed**:
+4. **Live Quest Updates (NEW)**:
+   The campaign has a "Live" feature on the mini-site. You MUST keep the players synchronized in real-time.
+   Whenever a major event occurs (New scene, combat, HP change), call `write_to_file` on `dnd-site/public/live.json`.
+   
+   **REQUIRED Live JSON Schema**:
+   ```json
+   {
+     "active": true,
+     "lastUpdate": "ISO_TIMESTAMP",
+     "currentLocation": "Name of Place",
+     "currentScene": {
+       "image": "/assets/sessions/X/filename.png",
+       "description": "Short evocative description of what's happening",
+       "isGenerating": false
+     },
+     "partyStatus": [
+       { "id": "diaz", "hp": NUMBER, "status": "Condition" },
+       { "id": "valmir", "hp": NUMBER, "status": "Condition" },
+       { "id": "gandhi", "hp": NUMBER, "status": "Condition" }
+     ],
+     "recentEvents": ["Last 3-5 major actions or discoveries"]
+   }
+   ```
+   - **isGenerating**: Set to `true` *before* generating an image with `generate_image`, and `false` *after* updating the `image` field with the new URL.
+
+5. **Improvise when needed**:
    - If players go off-script, adapt the story
    - Use "rule of cool" for creative solutions
    - Keep the game moving - don't get bogged down in rules
@@ -268,7 +293,11 @@ At the end of each session:
    - **Check images**: Ensure image paths in JSON match the newly copied files.
    - This keeps the immersive site up-to-date with your latest adventures!
 
-5. **When context gets too large** (>160k tokens):
+5. **Finalize Live Quest**:
+   - Set `"active": false` in `dnd-site/public/live.json` to inform players the session has ended.
+   - Update the `currentScene.description` to a "To be continued..." style message.
+
+6. **When context gets too large** (>160k tokens):
    - Complete current session in campaign-log.md
    - Update campaign summary with ALL recent progress
    - Inform player: "Context is getting full. Session log saved to campaign-log.md. Ready to start fresh next session!"
