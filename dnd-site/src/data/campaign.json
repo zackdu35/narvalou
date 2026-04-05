@@ -1,0 +1,157 @@
+{
+  "campaignName": "Les Mines Oubliées de Phandelver",
+  "dm": "Antigravity",
+  "summary": "Une aventure épique à travers les Terres Sauvages pour retrouver la mine perdue de Phandelver et les trésors qu'elle recèle.",
+  "characters": [
+    {
+      "id": "diaz",
+      "name": "DiAz",
+      "race": "Nain",
+      "class": "Voleur",
+      "level": 1,
+      "hp": { "current": 11, "max": 11 },
+      "stats": { "str": 8, "dex": 15, "con": 16, "int": 12, "wis": 13, "cha": 10 },
+      "description": "Nain aux cheveux violets, expert en discrétion et en coups tordus.",
+      "image": "/assets/characters/diaz.png"
+    },
+    {
+      "id": "valmir",
+      "name": "Valmir",
+      "race": "Humain",
+      "class": "Magicien",
+      "level": 1,
+      "hp": { "current": 7, "max": 7 },
+      "stats": { "str": 10, "dex": 12, "con": 13, "int": 16, "wis": 11, "cha": 9 },
+      "description": "Mage SDF, ibriologue et ancien propriétaire d'une tour saisie pour fraude fiscale.",
+      "image": "/assets/characters/valmir.png"
+    },
+    {
+      "id": "gandhi",
+      "name": "Gandhi",
+      "race": "Gnome",
+      "class": "Druide",
+      "level": 1,
+      "hp": { "current": 9, "max": 9 },
+      "stats": { "str": 8, "dex": 14, "con": 12, "int": 14, "wis": 16, "cha": 10 },
+      "description": "Druide barbu aux cheveux de feuilles, accroc aux champignons et à la fumette.",
+      "image": "/assets/characters/gandhi.png"
+    }
+  ],
+  "sessions": [
+    {
+      "id": 1,
+      "title": "L'Antre des Gueules de Crue",
+      "date": "2026-04-05",
+      "summary": "La session a débuté par une embuscade sanglante sur la route de Phandaline. DiAz a promptement éliminé le chef ennemi. Alors qu'ils mettaient le chariot en sécurité, ils ont découvert Valmir, un mage humain déchu, émergeant des buissons avec une haleine de vieux malt. \n\nLe groupe a infiltré le repaire des gobelins, utilisant des cadavres de gardes pour nourrir les loups affamés et atteindre la salle du boss sans combat inutile. Klarg le Bugbear a finalement été terrassé dans une pluie d'acier et de projectiles magiques.",
+      "story": [
+        {
+          "url": "/assets/sessions/1/01_diaz_on_the_road_to_phandalin_with_horses_in_distance_1775345233919.png",
+          "text": "Le voyage vers Phandaline avait pourtant bien commencé, jusqu'à ce que nous tombions sur les chevaux de Gundren, raides morts sur la route."
+        },
+        {
+          "url": "/assets/sessions/1/02_diaz_negotiating_with_goblins_during_ambush_on_wagon_1775345691343.png",
+          "text": "Les gobelins ont surgi de nulle part ! Heureusement, DiAz n'est pas du genre à se laisser intimider."
+        },
+        {
+          "url": "/assets/sessions/1/03_diaz_attacking_goblins_combat_scene_forest_road_1775345845316.png",
+          "text": "Le premier sang a coulé rapidement. DiAz a fendu l'air de ses lames, ne laissant aucune chance aux éclaireurs."
+        },
+        {
+          "url": "/assets/sessions/1/04_diaz_and_sildar_tying_up_goblins_near_tree_1775346117961.png",
+          "text": "Sildar et DiAz ont ligoté les survivants pour les interroger. Les gobelins tremblaient de peur face au regard froid du nain."
+        },
+        {
+          "url": "/assets/sessions/1/05_valmir_emerging_from_bushes_metting_diaz_and_sildar_1775346607837.png",
+          "text": "Soudain, un bruit de branches cassées... et Valmir est apparu, l'air aussi confus que s'il venait de se réveiller d'un banquet de trois jours."
+        },
+        {
+          "url": "/assets/sessions/1/06_valmir_casting_sleep_on_goblins_in_the_forest_1775347288550.png",
+          "text": "Pour prouver ses talents, Valmir a plongé une patrouille ennemie dans un sommeil profond d'un simple geste."
+        },
+        {
+          "url": "/assets/sessions/1/07_klarg_hideout_cave_entrance_with_party_and_guide_1775347876745.png",
+          "text": "Devant nous, l'entrée béante de la grotte. L'odeur du danger était palpable."
+        },
+        {
+          "url": "/assets/sessions/1/08_diaz_victorious_over_goblin_guards_at_cave_entrance_1775348533559.png",
+          "text": "Les sentinelles n'ont même pas eu le temps de crier gare avant d'être envoyées au tapis par DiAz."
+        },
+        {
+          "url": "/assets/sessions/1/09_valmir_feeding_goblins_to_wolves_in_cragmaw_hideout_1775348889424.png",
+          "text": "Valmir a eu l'idée brillante (et un peu atroce) de nourrir les loups de Klarg avec les restes de nos ennemis. Efficace."
+        },
+        {
+          "url": "/assets/sessions/1/10_sildar_dropping_rope_to_party_in_kennel_fissure_1775349667075.png",
+          "text": "Une corde, un peu de muscle, et nous voilà partis à l'assaut des niveaux supérieurs du repaire."
+        },
+        {
+          "url": "/assets/sessions/1/11_valmir_climbing_to_sildar_in_dark_cave_fissure_1775350143142.png",
+          "text": "Même avec quelques flacons de nectar dans le sang, Valmir a grimpé comme un chat."
+        },
+        {
+          "url": "/assets/sessions/1/12_klarg_bugbear_cave_with_treasure_and_party_hiding_v2_1775350460326.png",
+          "text": "Nous l'avons enfin trouvé : Klarg. Assis là, au milieu de son trésor volé."
+        },
+        {
+          "url": "/assets/sessions/1/13_diaz_sneak_attack_on_klarg_bugbear_boss_in_cave_hideout_1775350974130.png",
+          "text": "Le destin de Klarg a été scellé par une attaque sournoise dévastatrice de DiAz en pleine épaule."
+        },
+        {
+          "url": "/assets/sessions/1/14_klarg_bugbear_boss_combat_in_cave_hideout_intense_action_1775351550032.png",
+          "text": "Le combat a été bref mais intense. Le Bugbear rugissait de rage, mais nous étions déjà sur lui."
+        },
+        {
+          "url": "/assets/sessions/1/15_valmir_magic_missile_defeat_klarg_bugbear_boss_in_cave_hideout_1775351793117.png",
+          "text": "Et c'est le Projectile Magique de Valmir qui a mis fin au règne de Klarg une fois pour toutes."
+        }
+      ],
+      "highlights": [
+        "Élimination éclair du chef gobelin par DiAz.",
+        "Réveil brutal de Valmir dans un buisson de myrtilles.",
+        "Sort de Sommeil magistral pour calmer les prisonniers.",
+        "Festin macabre pour les loups du chenil.",
+        "Ascension périlleuse de la cheminée naturelle.",
+        "Triple Projectile Magique fatal pour Klarg le Bugbear."
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Le Loup, le Gnome et l'Auberge",
+      "date": "2026-04-05",
+      "summary": "Après la défaite de Klarg, le groupe a su faire preuve d'empathie et de curiosité. Valmir a apprivoisé Ripper, le loup du bugbear, tandis que Gandhi, un druide gnome amateur de champignons, a rejoint l'équipe. Grâce à une communication animale réussie, le groupe a appris que Gundren était retenu au Château de Cragmaw. La session s'est terminée par une célébration mémorable à Phandaline.",
+      "story": [
+        {
+          "url": "/assets/sessions/2/01_klarg_aftermath.png",
+          "text": "Le silence est revenu dans l'antre de Klarg, mais la tristesse de Ripper était palpable."
+        },
+        {
+          "url": "/assets/sessions/2/02_taming_ripper.png",
+          "text": "Un moment de pure connexion : Valmir apaise le loup en deuil, créant un lien indéfectible."
+        },
+        {
+          "url": "/assets/sessions/2/04_gandhi_intro_v2.png",
+          "text": "Gandhi est apparu dans un nuage de poussière et de spores, brandissant un champignon luminescent."
+        },
+        {
+          "url": "/assets/sessions/2/05_twin_pools_setup.png",
+          "text": "Avant de partir, nous avons jeté un dernier regard sur le repaire des gobelins depuis les hauteurs."
+        },
+        {
+          "url": "/assets/sessions/2/06_arriving_in_town.png",
+          "text": "L'arrivée à Phandaline au crépuscule. Un havre de paix relatif... pour l'instant."
+        },
+        {
+          "url": "/assets/sessions/2/07_tavern_night.png",
+          "text": "L'Auberge de Stonehill se souviendra longtemps du gnome qui dansait nu sur le bar."
+        }
+      ],
+      "highlights": [
+        "Ripper le loup devient l'allié de Valmir (20 Naturel !).",
+        "Introduction de Gandhi, le druide gnome barbu.",
+        "Communication avec Ripper révélant la position de Gundren.",
+        "Arrivée sécurisée à Phandaline avec Sildar.",
+        "Strip-tease de Gandhi et rejet courtois des avances naines par DiAz."
+      ]
+    }
+  ]
+}
