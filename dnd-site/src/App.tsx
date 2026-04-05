@@ -125,8 +125,15 @@ function App() {
         schema: 'public', 
         table: 'messages' 
       }, (payload) => {
-        setMessages(prev => [...prev, payload.new])
-        // Notification visuelle si chat fermé (TODO)
+        const newMsg = payload.new
+        setMessages(prev => [...prev, newMsg])
+        
+        // --- DETECTION AUDIO ---
+        const audioMatch = newMsg.content.match(/\[AUDIO:(.*?)\]/)
+        if (audioMatch && audioMatch[1]) {
+          const audio = new Audio(audioMatch[1])
+          audio.play().catch(e => console.error("Échec de la lecture audio:", e))
+        }
       })
       .subscribe()
 
@@ -443,12 +450,14 @@ function App() {
           {commonMessages.map((m: any, i: number) => {
             const senderChar = data.characters.find((c: any) => c.id === m.sender_id)
             const senderName = m.sender_id === 'DM' ? 'Le Maître du Donjon' : (senderChar?.name || m.sender_id)
+            const cleanContent = m.content.replace(/\[AUDIO:.*?\]/g, '').trim()
+            console.log("Chat Message Debug:", { original: m.content, cleaned: cleanContent })
             
             return (
               <div key={i} className={`common-msg ${m.sender_id === 'DM' ? 'dm-msg' : 'player-msg'}`}>
                 <span className="msg-author">{senderName}:</span>
                 <span className="msg-content">
-                  {m.content.split(/(@[A-Za-z0-9_À-ÿ]+)/g).map((part: string, idx: number) => 
+                  {cleanContent.split(/(@[A-Za-z0-9_À-ÿ]+)/g).map((part: string, idx: number) => 
                     part.match(/^@[A-Za-z0-9_À-ÿ]+/) ? (
                       <span key={idx} className="mention">{part}</span>
                     ) : part
