@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react'
 import './index.css'
 import campaignData from './data/campaign.json'
+import { supabase } from './lib/supabase'
 
 function App() {
   const [data, setData] = useState(campaignData)
   const [selectedSession, setSelectedSession] = useState<any>(null)
   const [currentStep, setCurrentStep] = useState(0)
   
-  // Live Mode states
+  // States pour le Live (Initialisé avec un placeholder ou le fallback local)
   const [isLiveMode, setIsLiveMode] = useState(false)
   const [liveData, setLiveData] = useState<any>(null)
   const [lastFetched, setLastFetched] = useState(Date.now())
@@ -16,25 +17,69 @@ function App() {
     setData(campaignData)
   }, [])
 
-  // Live Mode Polling
+  // 🌩️ REALTIME SUPABASE LISTENER
   useEffect(() => {
-    let interval: any;
+    let sub: any;
+
     if (isLiveMode) {
-      const fetchLive = async () => {
-        try {
-          const res = await fetch('/live.json?t=' + Date.now()) // Buster cache
-          const jsonData = await res.json()
-          setLiveData(jsonData)
-          setLastFetched(Date.now())
-        } catch (err) {
-          console.error("Erreur lors de la récupération du live:", err)
+      // 1. On tente de charger l'état actuel initiale
+      const fetchInitialLive = async () => {
+        if (supabase) {
+          try {
+            const { data: initial, error } = await supabase
+              .from('live_game')
+              .select('data')
+          
+            if (error) {
+              console.warn("Erreur Supabase:", error.message)
+              return
+            }
+
+            if (initial && initial.length > 0) {
+              // On prend le premier record (ou celui avec id=1)
+              const session = initial[0]
+              setLiveData(session.data)
+              setLastFetched(Date.now())
+            }
+          } catch (err) {
+            console.error("Exception lors du fetch Supabase:", err)
+          }
+        } else {
+          // ... rest of fallback
+          // Fallback Local si Supabase n'est pas configuré
+          try {
+            const res = await fetch('/live.json?t=' + Date.now())
+            const jsonData = await res.json()
+            setLiveData(jsonData)
+          } catch (e) {
+            console.error("No live source available.")
+          }
         }
       }
-      
-      fetchLive()
-      interval = setInterval(fetchLive, 5000) // Poll every 5 seconds
+
+      fetchInitialLive()
+
+      // 2. On s'abonne aux changements en temps réel si Supabase est là
+      if (supabase) {
+        sub = supabase
+          .channel('live-updates')
+          .on('postgres_changes', { 
+            event: 'UPDATE', 
+            schema: 'public', 
+            table: 'live_game',
+            filter: 'id=eq.1'
+          }, (payload) => {
+            console.log('Update reçue du cloud !', payload.new.data)
+            setLiveData(payload.new.data)
+            setLastFetched(Date.now())
+          })
+          .subscribe()
+      }
     }
-    return () => clearInterval(interval)
+
+    return () => {
+      if (sub) supabase?.removeChannel(sub)
+    }
   }, [isLiveMode])
 
   const openSession = (session: any) => {
@@ -55,6 +100,7 @@ function App() {
     }
   }
 
+  // --- RENDU LIVE ---
   if (isLiveMode && liveData) {
     return (
       <div className="app">
@@ -65,7 +111,7 @@ function App() {
 
         <div className="live-view-container">
           <div className="container" style={{ marginBottom: '40px', textAlign: 'center' }}>
-            <h1 style={{ fontSize: '2.5rem', marginBottom: '10px' }}>Session en cours</h1>
+            <h1 style={{ fontSize: '2.5rem', marginBottom: '10px' }}>Session en direct sur Vercel</h1>
             <div className="live-location">
               <span style={{ fontSize: '1.2rem' }}>📍</span> {liveData.currentLocation}
             </div>
@@ -97,7 +143,7 @@ function App() {
 
             <div className="live-sidebar">
               <div className="sidebar-panel">
-                <h4>Statut du Groupe</h4>
+                <h4>Statut du Groupe (Cloud Synchronized)</h4>
                 <div className="party-status-list">
                   {liveData.partyStatus.map((char: any) => {
                     const originalChar = data.characters.find(c => c.id === char.id)
@@ -136,7 +182,7 @@ function App() {
               </div>
 
               <div style={{ textAlign: 'center', fontSize: '0.7rem', color: '#444' }}>
-                Dernière mise à jour: {new Date(lastFetched).toLocaleTimeString()}
+                Réception cloud: {new Date(lastFetched).toLocaleTimeString()}
               </div>
             </div>
           </div>
@@ -145,6 +191,7 @@ function App() {
     )
   }
 
+  // --- RENDU ARCHIVE / HOME ---
   return (
     <div className="app">
       {!isLiveMode && (
@@ -154,7 +201,6 @@ function App() {
         </button>
       )}
 
-      {/* Detail View / Modal */}
       {selectedSession && (
         <div className="modal-overlay" onClick={() => setSelectedSession(null)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
@@ -351,15 +397,8 @@ function App() {
       </div>
 
       <footer style={{ background: '#111', padding: '60px 0', textAlign: 'center', marginTop: '100px', borderTop: '1px solid #222' }}>
-        <p style={{ color: '#555', fontSize: '0.8rem', letterSpacing: '2px', textTransform: 'uppercase' }}>Géré par le module D&D DM v1.5 - Mode Live {liveData?.active ? 'Disponible' : 'Indisponible'}</p>
+        <p style={{ color: '#555', fontSize: '0.8rem', letterSpacing: '2px', textTransform: 'uppercase' }}>Géré par le module D&D DM - Synchronisation Cloud Realtime {supabase ? 'Active' : 'Désactivée'}</p>
       </footer>
-      
-      <style>{`
-        @keyframes bounce {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(10px); }
-        }
-      `}</style>
     </div>
   )
 }

@@ -175,19 +175,19 @@ During gameplay:
 
    **Example Rest Rule**: After a Long Rest, you MUST update all character sheets to reset PV to PV Max and restore all spell slots.
 
-4. **Live Quest Updates (NEW)**:
-   The campaign has a "Live" feature on the mini-site. You MUST keep the players synchronized in real-time.
-   Whenever a major event occurs (New scene, combat, HP change), call `write_to_file` on `dnd-site/public/live.json`.
+4. **Live Quest Cloud Updates (PRO)**:
+   The campaign uses **Supabase Realtime**. You MUST keep the players synchronized in the cloud.
+   Whenever a major event occurs (New scene, combat, HP change), call the `update-live.js` script with the new JSON state.
    
-   **REQUIRED Live JSON Schema**:
-   ```json
-   {
+   **Command**:
+   ```bash
+   node update-live.js '{
      "active": true,
      "lastUpdate": "ISO_TIMESTAMP",
      "currentLocation": "Name of Place",
      "currentScene": {
        "image": "/assets/sessions/X/filename.png",
-       "description": "Short evocative description of what's happening",
+       "description": "Short description",
        "isGenerating": false
      },
      "partyStatus": [
@@ -195,10 +195,11 @@ During gameplay:
        { "id": "valmir", "hp": NUMBER, "status": "Condition" },
        { "id": "gandhi", "hp": NUMBER, "status": "Condition" }
      ],
-     "recentEvents": ["Last 3-5 major actions or discoveries"]
-   }
+     "recentEvents": ["Last 3-5 major actions"]
+   }'
    ```
-   - **isGenerating**: Set to `true` *before* generating an image with `generate_image`, and `false` *after* updating the `image` field with the new URL.
+   - **isGenerating**: Set to `true` *before* generating an image, and `false` *after* updating the state with the new image URL.
+   - **persist status**: This updates the `id: 1` record in the `live_game` table, triggering an instant refresh for all connected players on your Vercel site.
 
 5. **Improvise when needed**:
    - If players go off-script, adapt the story
