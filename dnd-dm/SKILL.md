@@ -175,36 +175,15 @@ During gameplay:
 
    **Example Rest Rule**: After a Long Rest, you MUST update all character sheets to reset PV to PV Max and restore all spell slots.
 
-4. **Live Quest Cloud Updates (PRO)**:
-    The campaign uses **Supabase Realtime**. You MUST keep the players synchronized in the cloud.
-    Whenever a major event occurs (New scene, combat, HP change, or Quest update), call the `scripts/updateLive.js` script with the new JSON state.
+    **Cloud Sync (AUTOMATED)**:
+    Use the `scripts/dm-sync.js` script to update the dashboard.
     
-    **Le Journal de Quête (Quest Log)**: Use the `activeQuests` array to track main and side objectives. This is CRITICAL for the "Fil Rouge" of the story.
+    **Workflow**:
+    1. Update character sheets/logs.
+    2. Save state to a temp JSON file (e.g., `/tmp/live-state.json`).
+    3. Run sync: `node scripts/dm-sync.js /tmp/live-state.json [path_to_image]`
     
-    **Command**:
-    ```bash
-    node scripts/updateLive.js '{
-      "active": true,
-      "lastUpdate": "ISO_TIMESTAMP",
-      "currentLocation": "Phandaline - Auberge de Stonehill",
-      "currentTimeOfDay": "Soirée",
-      "activeQuests": [
-        { "title": "Retrouver Gundren Rockseeker", "description": "Emmené au Château de Cragmaw.", "priority": "high" },
-        { "title": "Enquêter sur les Redbrands", "description": "Repaire de Tresendar.", "priority": "medium" }
-      ],
-      "currentScene": {
-        "image": "/assets/sessions/X/filename.png",
-        "description": "Description de la scène",
-        "isGenerating": false
-      },
-      "partyStatus": [
-        { "id": "diaz", "hp": 11, "status": "En forme" },
-        { "id": "valmir", "hp": 7, "status": "Ivre" },
-        { "id": "gandhi", "hp": 9, "status": "Placide" }
-      ],
-      "recentEvents": ["Arrivée à Phandaline"]
-    }'
-    ```
+    **CRITICAL**: This script uses the **Service Role Key** and automatically uploads your locally generated images to Supabase Storage. NEVER use local `/assets/` paths in the board state.
    - **currentTimeOfDay**: Mandatory field. Must reflect the current time within the game world (e.g., "Aube", "Midi", "Crépuscule", "Minuit").
    - **isGenerating**: Set to `true` *before* generating an image, and `false` *after* updating the state.
    - **persist status**: This updates the `id: 1` record in the `live_game` table, triggering an instant refresh for all players.
