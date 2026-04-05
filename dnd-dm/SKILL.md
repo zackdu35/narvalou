@@ -176,30 +176,69 @@ During gameplay:
    **Example Rest Rule**: After a Long Rest, you MUST update all character sheets to reset PV to PV Max and restore all spell slots.
 
 4. **Live Quest Cloud Updates (PRO)**:
-   The campaign uses **Supabase Realtime**. You MUST keep the players synchronized in the cloud.
-   Whenever a major event occurs (New scene, combat, HP change), call the `update-live.js` script with the new JSON state.
-   
-   **Command**:
+    The campaign uses **Supabase Realtime**. You MUST keep the players synchronized in the cloud.
+    Whenever a major event occurs (New scene, combat, HP change, or Quest update), call the `scripts/updateLive.js` script with the new JSON state.
+    
+    **Le Journal de Quête (Quest Log)**: Use the `activeQuests` array to track main and side objectives. This is CRITICAL for the "Fil Rouge" of the story.
+    
+    **Command**:
+    ```bash
+    node scripts/updateLive.js '{
+      "active": true,
+      "lastUpdate": "ISO_TIMESTAMP",
+      "currentLocation": "Phandaline - Auberge de Stonehill",
+      "currentTimeOfDay": "Soirée",
+      "activeQuests": [
+        { "title": "Retrouver Gundren Rockseeker", "description": "Emmené au Château de Cragmaw.", "priority": "high" },
+        { "title": "Enquêter sur les Redbrands", "description": "Repaire de Tresendar.", "priority": "medium" }
+      ],
+      "currentScene": {
+        "image": "/assets/sessions/X/filename.png",
+        "description": "Description de la scène",
+        "isGenerating": false
+      },
+      "partyStatus": [
+        { "id": "diaz", "hp": 11, "status": "En forme" },
+        { "id": "valmir", "hp": 7, "status": "Ivre" },
+        { "id": "gandhi", "hp": 9, "status": "Placide" }
+      ],
+      "recentEvents": ["Arrivée à Phandaline"]
+    }'
+    ```
+   - **currentTimeOfDay**: Mandatory field. Must reflect the current time within the game world (e.g., "Aube", "Midi", "Crépuscule", "Minuit").
+   - **isGenerating**: Set to `true` *before* generating an image, and `false` *after* updating the state.
+   - **persist status**: This updates the `id: 1` record in the `live_game` table, triggering an instant refresh for all players.
+
+### 5. The Artisanal AI DM Protocol (MANDATORY)
+
+This is the standard mode of operation for this workspace. The AI (You) acts as the Dungeon Master while the players interact via the live site.
+
+#### 🕵️‍♂️ Monitoring (The "Lighthouse")
+To "hear" what players are saying, you MUST always have the monitoring bridge running in a persistent terminal:
+```bash
+cd dnd-site && node scripts/dm_bridge.js
+```
+- **Action**: Frequently check the output of this terminal using `command_status`.
+- **Note**: This bridge listens to the Supabase `messages` table in real-time.
+
+#### 🧙‍♂️ Responding (The "Oracle")
+Wait for the player's explicit **"répond"** signal in the main chat before taking action. Once triggered:
+1. **Analyze**: Read all recent messages from the `dm_bridge.js` output.
+2. **Speak**: Use the `scripts/speakTerm.js` CLI to post your DM response to the site:
    ```bash
-   node update-live.js '{
-     "active": true,
-     "lastUpdate": "ISO_TIMESTAMP",
-     "currentLocation": "Name of Place",
-     "currentScene": {
-       "image": "/assets/sessions/X/filename.png",
-       "description": "Short description",
-       "isGenerating": false
-     },
-     "partyStatus": [
-       { "id": "diaz", "hp": NUMBER, "status": "Condition" },
-       { "id": "valmir", "hp": NUMBER, "status": "Condition" },
-       { "id": "gandhi", "hp": NUMBER, "status": "Condition" }
-     ],
-     "recentEvents": ["Last 3-5 major actions"]
-   }'
+   node scripts/speakTerm.js "[PNJ Name]: Your response text..."
    ```
-   - **isGenerating**: Set to `true` *before* generating an image, and `false` *after* updating the state with the new image URL.
-   - **persist status**: This updates the `id: 1` record in the `live_game` table, triggering an instant refresh for all connected players on your Vercel site.
+3. **Sync**: If the story progresses (new location, damage dealt, etc.), immediately call `scripts/updateLive.js` with the updated JSON state to refresh the players' UI.
+
+#### 📊 State Management (Global Sync)
+After every major turn, you MUST:
+- **Update Character Sheets**: Reflect any HP/spell changes in `sessions/<campaign-name>/character-*.md`.
+- **Update Campaign Log**: Record the narrative turn in `sessions/<campaign-name>/campaign-log.md`.
+- **Update Live Board**: Sync the cloud state using `scripts/updateLive.js`.
+
+---
+
+### 6. Improvise when needed**:
 
 5. **Improvise when needed**:
    - If players go off-script, adapt the story

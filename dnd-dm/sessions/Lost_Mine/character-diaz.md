@@ -1,10 +1,10 @@
-# DiAz - Nain Voleur (Niveau 1)
+# DiAz - Nain Voleur (Niveau: 1 (290/300 XP))
 
 **Race :** Nain
 **Sexe :** Masculin
 **Classe :** Voleur (Rogue)
 **Niveau :** 1
-**XP :** 0
+**XP :** 290
 **Cheveux :** Violets
 
 ## Caractéristiques
