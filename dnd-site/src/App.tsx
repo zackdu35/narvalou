@@ -447,7 +447,13 @@ function App() {
             return (
               <div key={i} className={`common-msg ${m.sender_id === 'DM' ? 'dm-msg' : 'player-msg'}`}>
                 <span className="msg-author">{senderName}:</span>
-                <span className="msg-content">{m.content}</span>
+                <span className="msg-content">
+                  {m.content.split(/(@[A-Za-z0-9_À-ÿ]+)/g).map((part: string, idx: number) => 
+                    part.match(/^@[A-Za-z0-9_À-ÿ]+/) ? (
+                      <span key={idx} className="mention">{part}</span>
+                    ) : part
+                  )}
+                </span>
               </div>
             )
           })}

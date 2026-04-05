@@ -1174,6 +1174,13 @@ input:focus {
   font-style: italic;
 }
 
+.mention {
+  color: #d4af37 !important;
+  font-weight: 900 !important;
+  text-shadow: 0 0 8px rgba(212, 175, 55, 0.6);
+  font-style: normal !important;
+}
+
 .common-chat-input {
   display: flex;
   padding: 10px;

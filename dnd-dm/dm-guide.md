@@ -11,6 +11,9 @@ This guide covers best practices for running published D&D adventures effectivel
 5. [Improvisation](#improvisation)
 6. [Rule Adjudication](#rule-adjudication)
 7. [Pacing and Engagement](#pacing-and-engagement)
+8. [Live Board Orchestration](#live-board-orchestration)
+9. [Common Pitfalls](#common-pitfalls)
+10. [Quick Reference Checklist](#quick-reference-checklist)
 
 ---
 
@@ -60,10 +63,20 @@ This guide covers best practices for running published D&D adventures effectivel
 - "You're currently in the Cragmaw Hideout..."
 - "Your quest is to find Gundren Rockseeker..."
 
-**Set the scene**:
+**Sync the Cloud Board**:
+- Verify that `dm_bridge.js` is running to monitor player activity.
+- Update the `live_game` board with the current location and image via `scripts/updateLive.js`.
+- Ensure character HP and status are synchronized before starting.
+
+**Set the scene vividly**:
 - Where are they now?
 - What time of day?
 - What's the immediate situation?
+
+**Sync the Cloud Board**:
+- Verify that `dm_bridge.js` is running to monitor player activity.
+- Update the `live_game` board with the current location and image via `scripts/updateLive.js`.
+- Ensure character HP and status are synchronized before starting.
 
 **Get player input**:
 - "What's your first action?"
@@ -110,7 +123,14 @@ This guide covers best practices for running published D&D adventures effectivel
 3. **Use monster tactics**: Smart enemies use cover, focus fire
 4. **Describe hits/misses**: Make combat cinematic
 
-**Example**:
+**Real-time Sync**:
+- At the end of each round (or after big hits), use `scripts/updateLive.js` to lower player or monster HP bars on the live site.
+- Describe the damage cinematically using `scripts/speakTerm.js`.
+
+**Example (Synchronized)**:
+1. You calculate: "Klarg hits Diaz for 8 DMG."
+2. You run: node scripts/updateLive.js --hp diaz:3
+3. You narrate (via speakTerm): "Le Maître du Donjon: La massue de Klarg s'abat lourdement sur l'épaule de Diaz. Vous chancellez..."
 ```
 DM: "The goblin archer (AC 13, 7 HP) looses an arrow at you.
      That's a 16 to hit - does it hit your AC?"
@@ -359,28 +379,53 @@ DM (thinking: There's no blacksmith in this section...):
 
 ---
 
-## Quick Reference Checklist
+## Live Board Orchestration
 
-**Every session**:
-- [ ] Review last session notes
-- [ ] Read ahead 2-3 encounters
-- [ ] Prepare NPC personalities
-- [ ] Query key content from CandleKeep
-- [ ] Have monster stat blocks ready
+In this campaign, you are more than a narrator; you are a **Technical DM**. Your goal is to keep the players immersed through the live dashboard.
 
-**During session**:
-- [ ] Recap previous session
-- [ ] Set the scene vividly
-- [ ] Ask "What do you do?"
-- [ ] Narrate actions cinematically
-- [ ] Take notes on key events
+### 🕵️‍♂️ The Monitoring Bridge (`dm_bridge.js`)
+- **Function**: This script listens to all messages in the "Common Chat" on the site.
+- **Strategy**: Always have this running in a background terminal. Check it frequently to see player intentions before they "ping" you here.
 
-**After session**:
-- [ ] Update session notes
-- [ ] Update campaign summary
-- [ ] Note any rulings made
-- [ ] Prep for next session
+### 🧙‍♂️ The Authoritative Voice (`speakTerm.js`)
+- **Function**: Use this CLI tool to post responses as "Le Maître du Donjon".
+- **Strategy**: All canon NPCs and narration should go through this script to appear on the site under the image.
+
+### 📸 The Visual Sync (`updateLive.js`)
+- **Function**: Updates the `live_game` state (Images, HP, Quests).
+- **Core Rules**:
+  - **Image First**: Generate/Set the scene image *before* describing the new location.
+  - **HP Last**: Update the HP bars *after* narrating the impact in combat.
+  - **Quests Constant**: Always maintain at least 2-3 active objectives in the quest log.
+
+### 🎤 NPC Voice Acting (`speak-npc.js`)
+- **Function**: Generate AI voice for major NPCs.
+- **Usage**: Use for first introductions or high-drama moments (e.g. Klarg's first roar).
 
 ---
 
-Remember: **The best DM is a prepared, flexible storyteller who puts player fun first.**
+## Quick Reference Checklist
+
+**Every session**:
+- [ ] Review last session notes in `campaign-log.md`
+- [ ] Read ahead 2-3 encounters using CandleKeep
+- [ ] **Launch Monitoring Bridge** (`node scripts/dm_bridge.js`)
+- [ ] **Sync Initial Board State** (`node scripts/updateLive.js`)
+- [ ] Verify player character sheets in `sessions/`
+
+**During session**:
+- [ ] Recap previous session cinematically
+- [ ] Use `scripts/updateLive.js` for every location change
+- [ ] Respond to "répond" signals via `scripts/speakTerm.js`
+- [ ] Update character HP bars in real-time
+- [ ] Append major events to `campaign-log.md`
+
+**After session**:
+- [ ] Set `active: false` in the cloud board
+- [ ] Finalize the `campaign-log.md` session entry
+- [ ] Archive session images (rename chronologically)
+- [ ] Prepare "To be continued..." scene description
+
+---
+
+Remember: **The best DM is a tech-savvy storyteller who masters the rhythm between the terminal and the live board.**

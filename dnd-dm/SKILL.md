@@ -213,6 +213,16 @@ During gameplay:
 
 This is the standard mode of operation for this workspace. The AI (You) acts as the Dungeon Master while the players interact via the live site.
 
+#### 🚫 NO UNICODE ESCAPES (CRITICAL)
+When calling `speakTerm.js` or `update-live.js` via the terminal:
+- **DO NOT** use unicode escape sequences like `\u0027`.
+- **DO** use raw characters like the apostrophe `'` directly in your shell command (ZSH handles them fine within double-quoted arguments).
+- **WHY**: Unicode escapes show up as "broken" text (e.g., `s\u0027essuyant`) in the player interface and break immersion.
+
+#### ✨ IMMERSION & MENTIONS
+- **Emojis**: You ARE allowed and encouraged to use emojis to add flavor to your messages (e.g., 🍺, ⚔️, 🌲).
+- **Mentions**: When you cite a player's character, use the format `@CharacterName` (e.g., `@DiAz`, `@Valmir`). These will be highlighted in yellow in the interface.
+
 #### 🕵️‍♂️ Monitoring (The "Lighthouse")
 To "hear" what players are saying, you MUST always have the monitoring bridge running in a persistent terminal:
 ```bash
