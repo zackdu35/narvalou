@@ -212,6 +212,7 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
               universe: camp.universe,
               dm: camp.dm_name,
               summary: camp.summary,
+              mapImage: camp.map_image,
               sessionNumber: camp.session_number,
               currentLocation: camp.current_location,
               currentTimeOfDay: camp.current_time_of_day,
@@ -317,7 +318,12 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
       <div className="app">
         {selectedCharacter && <CharacterSheet char={data.characters.find((c: any) => c.id === selectedCharacter.id)} onClose={() => setSelectedCharacter(null)} getMod={getMod} />}
         {activeGrimoire && <Grimoire char={data.characters.find((c: any) => c.id === activeGrimoire.id)} onClose={() => setActiveGrimoire(null)} curT={curT} />}
-        <MapModal isOpen={isMapVisible} onClose={() => setIsMapVisible(false)} curT={curT} />
+        <MapModal 
+          isOpen={isMapVisible} 
+          onClose={() => setIsMapVisible(false)} 
+          curT={curT} 
+          mapUrl={data.mapImage || 'https://images.unsplash.com/photo-1549490349-8643362247b5'} 
+        />
 
         <div className="live-game-toolbar">
           <div className="toolbar-left">

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-export const MapModal = ({ isOpen, onClose, curT }: { isOpen: boolean, onClose: () => void, curT: any }) => {
+export const MapModal = ({ isOpen, onClose, curT, mapUrl }: { isOpen: boolean, onClose: () => void, curT: any, mapUrl: string }) => {
   const [zoom, setZoom] = useState(1);
   if (!isOpen) return null;
   return (
@@ -37,7 +37,7 @@ export const MapModal = ({ isOpen, onClose, curT }: { isOpen: boolean, onClose: 
             display: 'inline-block'
           }}>
             <img
-              src="/assets/maps/lost_mine_map.jpg"
+              src={mapUrl}
               alt="Carte du monde"
               style={{ display: 'block', maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain' }}
             />
