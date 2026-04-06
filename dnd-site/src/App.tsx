@@ -432,7 +432,7 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
               </div>
               <div className="live-caption-box"><p className="live-description">{data.currentScene.description}</p></div>
             </div>
-            <div className="live-chat-column"><CommonChat messages={messages} currentRole={currentRole} data={data} curT={curT} sendMessage={sendMessage} supabase={supabase} /></div>
+            <div className="live-chat-column"><CommonChat messages={messages} data={data} curT={curT} sendMessage={sendMessage} supabase={supabase} /></div>
           </div>
         </div>
       </div>

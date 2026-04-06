@@ -1,11 +1,12 @@
 # Résumé de la Campagne: L'Héritage de Poudlard
 
-**Statut Actuel :** En cours
+**Statut Actuel :** Session 1 - L'Arrivée (En cours)
 **Nombre de Sessions :** 1
-**Lieu Actuel :** Lac Noir - Devant l'enceinte de Poudlard
+**Lieu Actuel :** Lac Noir - En barque vers Poudlard
 **Heure de la Journée :** Nuit
 **Quêtes Actives :**
-1. **La Cérémonie de Répartition**: Traverser le lac et entrer dans la Grande Salle.
+1. **La Cérémonie de Répartition**: Traverser le lac et entrer dans la Grande Salle pour découvrir votre maison.
 
 ## Membres de l'Équipe
-*(En attente des noms de personnages...)*
+- @Nouveau_Sorcier (En attente d'identification...)
+
