@@ -1,8 +1,8 @@
 {
-  "currentLocation": "Poudlard - Salle Commune de Serdaigle",
-  "currentTimeOfDay": "Nuit",
+  "currentLocation": "Pré-au-Lard - Rue Principale",
+  "currentTimeOfDay": "Midi",
   "currentScene": {
-    "description": "Le heurtoir en forme d'aigle a validé votre réponse et la porte s'est ouverte. Vous entrez dans un espace circulaire baigné d'une douce lumière bleue. Des tables chargées de livres anciens et des fauteuils en velours vous accueillent sous une voute parsemée de constellations d'argent.",
+    "description": "Vous arrivez enfin à Pré-au-Lard ! Les toits enneigés et les vitrines décorées des boutiques vous accueillent. L'odeur sucrée de Honeydukes se mélange à celle du feu de bois des Trois Balais.",
     "isGenerating": false,
     "image": ""
   },
@@ -12,15 +12,15 @@
       "name": "Zac",
       "hp": 10,
       "maxHp": 10,
-      "status": "Inspiré",
+      "status": "Ravi",
       "house": "Ravenclaw"
     }
   ],
   "activeQuests": [
     {
-      "title": "Un Moment de Calme",
-      "description": "Profitez de la tranquillité de votre salle commune pour réviser vos premiers sorts.",
-      "priority": "low"
+      "title": "Une Bière au Beurre ?",
+      "description": "Explorez les boutiques de Pré-au-Lard et rendez-vous aux Trois Balais.",
+      "priority": "normal"
     }
   ]
 }

@@ -216,117 +216,94 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
     if (player) setCurrentRole(player)
   }, [location.search])
 
-  useEffect(() => {
-    const fetchCampaign = async () => {
-      if (!supabase || !id) return
-      setIsLoading(true)
-      
-      const fetchInitial = async () => {
-        try {
-          console.log(`📡 Fetching initial data for campaign ${id}...`);
-          const { data: camp } = await supabase!.from('campaigns').select('*').eq('id', id).single()
-          const { data: chars } = await supabase!.from('characters').select('*').eq('campaign_id', id)
-          const { data: quests } = await supabase!.from('quests').select('*').eq('campaign_id', id)
-          const { data: sessions } = await supabase!.from('sessions').select('*').eq('campaign_id', id).order('session_number', { ascending: true })
+  const fetchInitial = async (showLoading = false) => {
+    if (!supabase || !id) return
+    if (showLoading) setIsLoading(true)
+    try {
+      console.log(`📡 Fetching initial data for campaign ${id}...`);
+      const { data: camp } = await supabase!.from('campaigns').select('*').eq('id', id).single()
+      const { data: chars } = await supabase!.from('characters').select('*').eq('campaign_id', id)
+      const { data: quests } = await supabase!.from('quests').select('*').eq('campaign_id', id)
+      const { data: sessions } = await supabase!.from('sessions').select('*').eq('campaign_id', id).order('session_number', { ascending: true })
 
-          if (camp) {
-            console.log(`✅ Data fetched successfully for: ${camp.name}`);
-            const merged = {
-              campaignName: camp.name,
-              universe: camp.universe,
-              dm: camp.dm_name,
-              summary: camp.summary,
-              mapImage: camp.map_image,
-              sessionNumber: camp.session_number,
-              currentLocation: camp.current_location,
-              currentTimeOfDay: camp.current_time_of_day,
-              currentScene: {
-                description: camp.scene_description,
-                image: camp.scene_image,
-                isGenerating: camp.is_generating
-              },
-              partyStatus: (chars || []).map(c => ({ id: c.id.split('_').pop(), name: c.name, hp: c.hp_current, status: "Prêt" })),
-              characters: (chars || []).map(c => ({
-                id: c.id.split('_').pop(),
-                name: c.name,
-                race: c.race,
-                class: c.class,
-                level: c.level,
-                hp: { current: c.hp_current, max: c.hp_max },
-                xp: { current: c.xp_current, next: c.xp_next },
-                spellSlots: c.spell_slots || { current: 0, max: 0 },
-                stats: c.stats,
-                inventory: c.inventory,
-                grimoire: c.grimoire,
-                features: c.features,
-                ideals: c.ideals,
-                bonds: c.bonds,
-                image: c.image,
-                description: c.description
-              })),
-              activeQuests: (quests || []).map(q => ({ title: q.title, description: q.description, priority: q.priority })),
-              sessions: (sessions || []).map(s => ({
-                id: s.session_number,
-                title: s.title,
-                date: s.date,
-                summary: s.summary,
-                story: s.story,
-                highlights: s.highlights
-              })),
-              recentEvents: ["Chargement de la campagne..."]
-            }
-            setData(merged)
-          }
-        } catch (e) { 
-          console.error("❌ Error fetching campaign data:", e) 
-        }
-        setIsLoading(false)
-      }
-
-      fetchInitial()
-
-      // Realtime sub if live
-      if (mode === 'live') {
-        const handleUpdate = (payload: any) => {
-          console.log("⚡ Realtime change detected:", payload.table, payload.eventType);
-          fetchInitial();
-        };
-
-        const subCamp = supabase!.channel(`camp-${id}`).on('postgres_changes', { event: '*', schema: 'public', table: 'campaigns', filter: `id=eq.${id}` }, handleUpdate).subscribe((status) => console.log(`🔌 Campaign sub: ${status}`))
-        const subChars = supabase!.channel(`chars-${id}`).on('postgres_changes', { event: '*', schema: 'public', table: 'characters', filter: `campaign_id=eq.${id}` }, handleUpdate).subscribe()
-        const subQuests = supabase!.channel(`quests-${id}`).on('postgres_changes', { event: '*', schema: 'public', table: 'quests', filter: `campaign_id=eq.${id}` }, handleUpdate).subscribe()
-        
-        return () => { 
-          supabase!.removeChannel(subCamp)
-          supabase!.removeChannel(subChars)
-          supabase!.removeChannel(subQuests)
-        }
-      }
-    }
-
-    fetchCampaign()
-  }, [id, mode])
-
-  // Chat listener
-  useEffect(() => {
-    if (!supabase || mode !== 'live' || !id) return
-    
-    // Create a stable reference to fetchInitial by providing it in the parent or fetching directly
-    const triggerRefetch = async () => {
-      const { data: camp } = await supabase!.from('campaigns').select('scene_description, scene_image, current_location, current_time_of_day, is_generating').eq('id', id).single();
       if (camp) {
-        setData((prev: any) => ({
-          ...prev,
+        console.log(`✅ Data fetched successfully for: ${camp.name}`);
+        const merged = {
+          campaignName: camp.name,
+          universe: camp.universe,
+          dm: camp.dm_name,
+          summary: camp.summary,
+          mapImage: camp.map_image,
+          sessionNumber: camp.session_number,
           currentLocation: camp.current_location,
           currentTimeOfDay: camp.current_time_of_day,
           currentScene: {
             description: camp.scene_description,
             image: camp.scene_image,
             isGenerating: camp.is_generating
-          }
-        }));
+          },
+          partyStatus: (chars || []).map(c => ({ id: c.id.split('_').pop(), name: c.name, hp: c.hp_current, status: "Prêt" })),
+          characters: (chars || []).map(c => ({
+            id: c.id.split('_').pop(),
+            name: c.name,
+            race: c.race,
+            class: c.class,
+            level: c.level,
+            hp: { current: c.hp_current, max: c.hp_max },
+            xp: { current: c.xp_current, next: c.xp_next },
+            spellSlots: c.spell_slots || { current: 0, max: 0 },
+            stats: c.stats,
+            inventory: c.inventory,
+            grimoire: c.grimoire,
+            features: c.features,
+            ideals: c.ideals,
+            bonds: c.bonds,
+            image: c.image,
+            description: c.description
+          })),
+          activeQuests: (quests || []).map(q => ({ title: q.title, description: q.description, priority: q.priority })),
+          sessions: (sessions || []).map(s => ({
+            id: s.session_number,
+            title: s.title,
+            date: s.date,
+            summary: s.summary,
+            story: s.story,
+            highlights: s.highlights
+          })),
+          recentEvents: ["Chargement de la campagne..."]
+        }
+        setData(merged)
       }
-    };
+    } catch (e) { 
+      console.error("❌ Error fetching campaign data:", e) 
+    }
+    if (showLoading) setIsLoading(false)
+  }
+
+  useEffect(() => {
+    fetchInitial(true)
+
+    if (mode === 'live') {
+      const handleUpdate = () => fetchInitial(false);
+
+      const subCamp = supabase!.channel(`camp-${id}`).on('postgres_changes', { event: '*', schema: 'public', table: 'campaigns', filter: `id=eq.${id}` }, handleUpdate).subscribe()
+      const subChars = supabase!.channel(`chars-${id}`).on('postgres_changes', { event: '*', schema: 'public', table: 'characters', filter: `campaign_id=eq.${id}` }, handleUpdate).subscribe()
+      const subQuests = supabase!.channel(`quests-${id}`).on('postgres_changes', { event: '*', schema: 'public', table: 'quests', filter: `campaign_id=eq.${id}` }, handleUpdate).subscribe()
+      
+      return () => { 
+        supabase!.removeChannel(subCamp)
+        supabase!.removeChannel(subChars)
+        supabase!.removeChannel(subQuests)
+      }
+    }
+  }, [id, mode])
+
+  // Chat listener
+  useEffect(() => {
+    if (!supabase || mode !== 'live' || !id) return
+    
+    // Create a stable reference to fetch everything
+    const triggerRefetch = () => fetchInitial(false);
 
     const fetchMsgs = async () => {
       const { data: msgs } = await supabase!.from('messages')
@@ -376,6 +353,10 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
                   isGenerating: false
                 }
               }));
+              
+              // NEW: Trigger a background full refetch to get updated quests and HP
+              console.log("🔄 Triggering background full refetch...");
+              triggerRefetch();
             } catch (e) {
                console.error("❌ Failed to parse sync signal:", e);
                triggerRefetch();

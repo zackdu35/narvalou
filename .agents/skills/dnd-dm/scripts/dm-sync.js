@@ -80,29 +80,19 @@ async function sync(jsonPath, imagePath) {
 
     // --- 4. UPDATE TABLE: quests (QUÊTES ACTIVES) ---
     if (newState.activeQuests) {
-      console.log(`📜 Synchronisation des quêtes...`)
-      for (const quest of newState.activeQuests) {
-        // Look for existing quest with same title in this campaign
-        const { data: existing } = await supabase
-          .from('quests')
-          .select('id')
-          .eq('campaign_id', campaignId)
-          .eq('title', quest.title)
-          .maybeSingle()
+      console.log(`📜 Nettoyage et synchronisation des quêtes...`)
+      
+      // 1. On supprime les anciennes quêtes pour repartir sur une base propre
+      await supabase.from('quests').delete().eq('campaign_id', campaignId)
 
-        if (existing) {
-          await supabase.from('quests').update({
-            description: quest.description,
-            priority: quest.priority || 'normal'
-          }).eq('id', existing.id)
-        } else {
-          await supabase.from('quests').insert({
-            campaign_id: campaignId,
-            title: quest.title,
-            description: quest.description,
-            priority: quest.priority || 'normal'
-          })
-        }
+      // 2. On insère les quêtes actuellement actives dans le JSON
+      for (const quest of newState.activeQuests) {
+        await supabase.from('quests').insert({
+          campaign_id: campaignId,
+          title: quest.title,
+          description: quest.description,
+          priority: quest.priority || 'normal'
+        })
       }
     }
 
