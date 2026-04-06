@@ -3,15 +3,14 @@ import dotenv from 'dotenv'
 import fs from 'fs/promises'
 import path from 'path'
 
-// Load .env
-dotenv.config({ path: '../../../../dnd-site/.env' })
+// Charger le .env du skill
 dotenv.config()
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
+const supabaseUrl = process.env.VITE_SUPABASE_URL
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 if (!supabaseUrl || !supabaseKey) {
-  console.error("ERROR: Missing Supabase URL or SERVICE_ROLE_KEY for high-privilege sync.")
+  console.error("❌ ERREUR: Supabase URL ou SERVICE_ROLE_KEY manquante.")
   process.exit(1)
 }
 
@@ -19,17 +18,19 @@ const supabase = createClient(supabaseUrl, supabaseKey)
 
 async function sync(jsonPath, imagePath) {
   try {
-    let newState = JSON.parse(await fs.readFile(jsonPath, 'utf8'))
+    console.log(`📖 Lecture du nouvel état: ${jsonPath}...`)
+    const newState = JSON.parse(await fs.readFile(jsonPath, 'utf8'))
+    const campaignId = process.argv[4] || 1 // Défaut à 1 (Padhiver)
     
-    // 1. Upload image if provided
-    if (imagePath) {
-      console.log(`📤 Uploading image: ${imagePath}...`)
+    // --- 1. GESTION DES IMAGES ---
+    if (imagePath && imagePath !== 'null') {
+      console.log(`📤 Upload de l'image de scène...`)
       const fileName = path.basename(imagePath)
       const fileData = await fs.readFile(imagePath)
       
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('campaign-assets')
-        .upload(`sessions/3/${fileName}`, fileData, {
+        .upload(`scenes/${campaignId}/${fileName}`, fileData, {
           contentType: 'image/png',
           upsert: true
         })
@@ -38,31 +39,69 @@ async function sync(jsonPath, imagePath) {
       
       const { data: { publicUrl } } = supabase.storage
         .from('campaign-assets')
-        .getPublicUrl(`sessions/3/${fileName}`)
+        .getPublicUrl(`scenes/${campaignId}/${fileName}`)
         
-      console.log(`✅ Image uploaded: ${publicUrl}`)
       newState.currentScene.image = publicUrl
-      newState.currentScene.isGenerating = false
     }
 
-    // 2. Update live_game for specific campaign
-    const campaignId = process.argv[4] || 1
-    console.log(`🔄 Updating live board (id: ${campaignId})...`)
-    const { error: updateError } = await supabase
-      .from('live_game')
-      .update({ 
-        data: newState,
+    // --- 2. UPDATE TABLE: campaigns (MÉTADONNÉES & SCÈNE) ---
+    console.log(`🏰 Mise à jour de la table 'campaigns'...`)
+    const { error: campError } = await supabase
+      .from('campaigns')
+      .update({
+        current_location: newState.currentLocation,
+        current_time_of_day: newState.currentTimeOfDay,
+        scene_description: newState.currentScene?.description,
+        scene_image: newState.currentScene?.image,
+        is_generating: newState.currentScene?.isGenerating || false,
         updated_at: new Date().toISOString()
       })
       .eq('id', campaignId)
-      
-    if (updateError) throw updateError
-    
-    console.log(`✨ Live board for Campaign #${campaignId} synced successfully!`)
-    console.log(`📍 Location: ${newState.currentLocation}`)
+
+    if (campError) throw campError
+
+    // --- 3. UPDATE TABLE: characters (POINTS DE VIE) ---
+    if (newState.partyStatus) {
+      console.log(`🕵️ Mise à jour de la santé des héros...`)
+      for (const charStatus of newState.partyStatus) {
+        // L'ID dans la table characters est campaignId_charId (ex: 1_diaz)
+        const charId = `${campaignId}_${charStatus.id}`
+        const { error: charError } = await supabase
+          .from('characters')
+          .update({
+            hp_current: charStatus.hp,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', charId)
+
+        if (charError) console.warn(`⚠️ Warning: Impossible de mettre à jour le perso ${charId}:`, charError.message)
+      }
+    }
+
+    // --- 4. UPDATE TABLE: quests (QUÊTES ACTIVES) ---
+    if (newState.activeQuests) {
+      console.log(`📜 Synchronisation des quêtes...`)
+      for (const quest of newState.activeQuests) {
+        // On essaie d'insérer ou d'ignorer si elle existe déjà (basé sur le titre)
+        const { error: questError } = await supabase
+          .from('quests')
+          .upsert({
+            campaign_id: campaignId,
+            title: quest.title,
+            description: quest.description,
+            priority: quest.priority || 'normal'
+          }, { onConflict: 'campaign_id, title' })
+
+        if (questError) console.warn("⚠️ Erreur synchronisation quête:", questError.message)
+      }
+    }
+
+    console.log(`\n✅ SYNCHRONISATION RELATIONNELLE RÉUSSIE !`)
+    console.log(`📍 Lieu: ${newState.currentLocation}`)
+    console.log(`🎭 Scène: ${newState.currentScene?.description?.substring(0, 50)}...`)
 
   } catch (err) {
-    console.error(`❌ Sync error: ${err.message}`)
+    console.error(`\n❌ ERREUR SYNC: ${err.message}`)
     process.exit(1)
   }
 }

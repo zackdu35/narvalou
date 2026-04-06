@@ -176,17 +176,14 @@ During gameplay:
    **Example Rest Rule**: After a Long Rest, you MUST update all character sheets to reset PV to PV Max and restore all spell slots.
 
     **Cloud Sync (AUTOMATED)**:
-    Use the `scripts/dm-sync.js` script to update the dashboard.
+    Use the `scripts/dm-sync.js` script to update the dashboard. This script updates multiple tables (`campaigns`, `characters`, `quests`) and automatically handles image uploads to Supabase Storage.
     
     **Workflow**:
     1. Update character sheets/logs.
     2. Save state to a temp JSON file (e.g., `/tmp/live-state.json`).
-    3. Run sync: `node scripts/dm-sync.js /tmp/live-state.json [path_to_image]`
+    3. Run sync: `node scripts/dm-sync.js /tmp/live-state.json [path_to_image] [id]`
     
-    **CRITICAL**: This script uses the **Service Role Key** and automatically uploads your locally generated images to Supabase Storage. NEVER use local `/assets/` paths in the board state.
-   - **currentTimeOfDay**: Mandatory field. Must reflect the current time within the game world (e.g., "Aube", "Midi", "Crépuscule", "Minuit").
-   - **isGenerating**: Set to `true` *before* generating an image, and `false` *after* updating the state.
-   - **persist status**: This updates the `id: 1` record in the `live_game` table, triggering an instant refresh for all players.
+    **CRITICAL**: NEVER use local `/assets/` paths for new scenes. This script ensures images are hosted on Supabase.
 
 ### 5. The Artisanal AI DM Protocol (MANDATORY)
 
@@ -217,13 +214,24 @@ cd dnd-site && node scripts/dm_bridge.js
 - **Note**: This bridge listens to the Supabase `messages` table in real-time.
 
 #### 🧙‍♂️ Responding (The "Oracle")
-Wait for the player's explicit **"répond"** signal in the main chat before taking action. Once triggered:
-1. **Analyze**: Read all recent messages from the `dm_bridge.js` output.
-2. **Speak**: Use the `scripts/speakTerm.js` CLI to post your DM response to the site:
-   ```bash
-   node scripts/speakTerm.js "[PNJ Name]: Your response text..."
-   ```
-3. **Sync**: If the story progresses (new location, damage dealt, etc.), immediately call `scripts/updateLive.js` with the updated JSON state to refresh the players' UI.
+Wait for the player's explicit **"répond"** signal in the main chat before taking action. Once triggered, ALWAYS follow this 3-step sequence:
+
+1. **ANALYZE (Pre-read)**:
+    - First, get the current state from Supabase to ensure your narration is accurate (HP, current scene, location).
+    - Use the `scripts/dm-sync.js` (or similar) to query or simply check the latest `character-*.md` and `campaign-summary.md` files if strictly following file-base, but ideally query SQL if possible.
+
+2. **SPEAK (Narrate)**:
+    - Write your immersive response. Use the `scripts/speakTerm.js` CLI to post it to the site chat:
+      ```bash
+      node scripts/speakTerm.js "[PNJ Name]: Your response text..."
+      ```
+
+3. **VISUALIZE & SYNC (Post-update)**:
+    - **IF** the scene changed or major damage was dealt (or a quest added):
+        - `generate_image` for the new context.
+        - Update character sheets/logs locally.
+        - Immediately call `scripts/dm-sync.js` with the updated JSON state and the new image path to refresh the board for ALL players.
+        - **Workflow**: Create `/tmp/state.json` -> Run `node scripts/dm-sync.js /tmp/state.json [img_path] [campaign_id]`.
 
 #### 📊 State Management (Global Sync)
 After every major turn, you MUST:

@@ -260,8 +260,15 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
 
       // Realtime sub if live
       if (mode === 'live') {
-        const sub = supabase!.channel(`live-${id}`).on('postgres_changes', { event: '*', schema: 'public', table: 'campaigns', filter: `id=eq.${id}` }, () => fetchInitial()).subscribe()
-        return () => { supabase!.removeChannel(sub) }
+        const subCamp = supabase!.channel(`camp-${id}`).on('postgres_changes', { event: '*', schema: 'public', table: 'campaigns', filter: `id=eq.${id}` }, () => fetchInitial()).subscribe()
+        const subChars = supabase!.channel(`chars-${id}`).on('postgres_changes', { event: '*', schema: 'public', table: 'characters', filter: `campaign_id=eq.${id}` }, () => fetchInitial()).subscribe()
+        const subQuests = supabase!.channel(`quests-${id}`).on('postgres_changes', { event: '*', schema: 'public', table: 'quests', filter: `campaign_id=eq.${id}` }, () => fetchInitial()).subscribe()
+        
+        return () => { 
+          supabase!.removeChannel(subCamp)
+          supabase!.removeChannel(subChars)
+          supabase!.removeChannel(subQuests)
+        }
       }
     }
 
