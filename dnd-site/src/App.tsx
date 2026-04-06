@@ -84,7 +84,8 @@ const CampaignSelector = () => {
         id: c.id,
         name: c.name || `Campagne #${c.id}`,
         universe: c.universe || 'D&D 5e',
-        lastUpdated: c.updated_at
+        lastUpdated: c.updated_at ? new Date(c.updated_at).toLocaleDateString() : 'N/A',
+        thumbnail: c.universe === 'Harry Potter' ? '/assets/hp_card.png' : c.universe === 'D&D 5e' ? '/assets/dnd_card.png' : '/assets/generic_card.png'
       })))
     }
   }
@@ -121,23 +122,43 @@ const CampaignSelector = () => {
   return (
     <div className="campaign-selection-overlay">
       <div className="campaign-selection-content">
-        <h1 style={{ fontFamily: 'Cinzel', color: 'var(--accent)', fontSize: '2.5rem', marginBottom: '10px' }}>Campagnes D&D</h1>
-        <p style={{ opacity: 0.7, marginBottom: '40px' }}>Choisissez votre aventure ou commencez une nouvelle légende.</p>
+        <h1 className="selector-title">VOS AVENTURES</h1>
+        <p style={{ color: 'var(--text-secondary)', marginBottom: '35px', fontSize: '1.1rem', letterSpacing: '1px' }}>
+          Choisissez votre légende ou forgez-en une nouvelle.
+        </p>
 
         <div className="campaign-grid">
-          {campaigns.map(c => (
-            <div key={c.id} className="campaign-card" onClick={() => navigate(`/campaign/${c.id}`)}>
-              <div className="campaign-card-banner">{c.universe === 'Harry Potter' ? '🪄' : '⚔️'}</div>
-              <h3>{c.name}</h3>
-              <div className="campaign-meta"><span>{c.universe}</span></div>
-              <button className="continue-btn">Continuer</button>
+          {campaigns.map((c, i) => (
+            <div 
+              key={c.id} 
+              className="campaign-card" 
+              onClick={() => navigate(`/campaign/${c.id}`)}
+              style={{ animation: `fadeInUp 0.8s ease-out ${i * 0.1}s both` }}
+            >
+              <div className="campaign-card-banner">
+                <img src={c.thumbnail} alt={c.name} />
+              </div>
+              <div className="campaign-card-info">
+                <div className="campaign-meta">
+                  <span>{c.universe}</span>
+                  <span className="last-played">Maj: {c.lastUpdated}</span>
+                </div>
+                <h3>{c.name}</h3>
+                <button className="continue-btn">Entrer dans l'aventure</button>
+              </div>
             </div>
           ))}
 
-          <div className="campaign-card add-new" onClick={() => setIsCreatingCampaign(true)}>
-            <div className="add-icon">+</div>
-            <h3>Nouvelle Campagne</h3>
-            <p>Explorer un nouvel univers</p>
+          <div 
+            className="campaign-card add-new" 
+            onClick={() => setIsCreatingCampaign(true)}
+            style={{ animation: `fadeInUp 0.8s ease-out ${campaigns.length * 0.1}s both` }}
+          >
+            <div className="campaign-card-banner" style={{ borderBottom: 'none' }}>
+              <img src="/assets/generic_card.png" style={{ opacity: 0.4 }} alt="New Adventure" />
+              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '5rem', color: 'var(--accent)', textShadow: '0 0 20px rgba(0,0,0,0.5)' }}>+</div>
+            </div>
+            <div className="add-text" style={{ padding: '0 0 30px' }}>NOUVELLE AVENTURE</div>
           </div>
         </div>
       </div>
@@ -152,7 +173,7 @@ const CampaignSelector = () => {
             </div>
             <div className="premium-form-group">
               <label className="premium-label">Univers</label>
-              <select className="premium-input-field" value={newCampaignUniverse} onChange={e => setNewCampaignUniverse(e.target.value)} style={{ appearance: 'none', background: 'rgba(0,0,0,0.4)' }}>
+              <select className="premium-input-field" value={newCampaignUniverse} onChange={e => setNewCampaignUniverse(e.target.value)} style={{ appearance: 'none' }}>
                 <option value="D&D 5e">D&D 5e (Médiéval Fantastique)</option>
                 <option value="Harry Potter">Harry Potter (Magie Moderne)</option>
                 <option value="Cyberpunk">Cyberpunk</option>
@@ -160,8 +181,8 @@ const CampaignSelector = () => {
               </select>
             </div>
             <div className="premium-actions">
-              <button className="premium-btn-lancer" onClick={createNewCampaign} disabled={isCreating || !newCampaignName.trim()}>{isCreating ? "Création..." : "Lancer"}</button>
-              <button className="premium-btn-annuler" onClick={() => setIsCreatingCampaign(false)} disabled={isCreating}>Annuler</button>
+              <button className="premium-btn-lancer" onClick={createNewCampaign} disabled={isCreating || !newCampaignName.trim()}>{isCreating ? "Création..." : "Lancer l'aventure"}</button>
+              <button className="premium-btn-annuler" onClick={() => setIsCreatingCampaign(false)} disabled={isCreating}>Plus tard</button>
             </div>
           </div>
         </div>
@@ -169,6 +190,7 @@ const CampaignSelector = () => {
     </div>
   )
 }
+
 
 // --- COMPONENT: CAMPAIGN VIEW (LAYOUT + DATA FETCHING) ---
 const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' | 'IT', setLanguage: any, mode: 'landing' | 'live' }) => {
@@ -299,16 +321,20 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
   }
 
   if (isLoading) return (
-    <div className="campaign-selection-overlay">
+    <div className="campaign-selection-overlay" style={{ flexDirection: 'column' }}>
       <div className="spinner"></div>
-      <p style={{ fontFamily: 'Cinzel', color: 'var(--accent)', marginTop: '20px' }}>Chargement de l'aventure...</p>
+      <p style={{ fontFamily: 'Cinzel', color: 'var(--accent)', marginTop: '25px', letterSpacing: '2px', fontSize: '1.2rem' }}>
+        Chargement de l'aventure...
+      </p>
     </div>
   )
 
   if (!data) return (
-    <div className="campaign-selection-overlay">
-      <h2>Campagne introuvable</h2>
-      <Link to="/" style={{ color: 'var(--accent)' }}>Retour à la sélection</Link>
+    <div className="campaign-selection-overlay" style={{ flexDirection: 'column' }}>
+      <h2 style={{ marginBottom: '20px' }}>Campagne introuvable</h2>
+      <Link to="/" style={{ color: 'var(--accent)', textDecoration: 'none', border: '1px solid var(--accent)', padding: '10px 20px', borderRadius: '4px' }}>
+        Retour à la sélection
+      </Link>
     </div>
   )
 
@@ -325,26 +351,28 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
           mapUrl={data.mapImage || 'https://images.unsplash.com/photo-1549490349-8643362247b5'} 
         />
 
-        <div className="live-game-toolbar">
-          <div className="toolbar-left">
-            <button className="toolbar-btn" onClick={() => setIsMapVisible(true)}><span>🗺️</span> {curT.map}</button>
-            <div style={{ margin: '0 10px', width: '1px', height: '20px', background: 'var(--accent-muted)' }}></div>
-            <div className="toolbar-info-item">
-              <span className="label">{curT.session}</span>
-              <span style={{ color: 'var(--accent)', fontSize: '1.2rem', fontFamily: 'var(--font-display)', marginLeft: '5px', fontWeight: 'bold' }}>{data.sessionNumber}</span>
+        {!selectedCharacter && !activeGrimoire && (
+          <div className="live-game-toolbar">
+            <div className="toolbar-left">
+              <button className="toolbar-btn" onClick={() => setIsMapVisible(true)}><span>🗺️</span> {curT.map}</button>
+              <div style={{ margin: '0 10px', width: '1px', height: '20px', background: 'var(--accent-muted)' }}></div>
+              <div className="toolbar-info-item">
+                <span className="label">{curT.session}</span>
+                <span style={{ color: 'var(--accent)', fontSize: '1.2rem', fontFamily: 'var(--font-display)', marginLeft: '5px', fontWeight: 'bold' }}>{data.sessionNumber}</span>
+              </div>
+            </div>
+            <div className="toolbar-center">
+              <div className="toolbar-info-item"><span>📍</span><span>{data.currentLocation}</span></div>
+              <span style={{ opacity: 0.3 }}>|</span>
+              <div className="toolbar-info-item"><span>🕰️</span><span>{data.currentTimeOfDay}</span></div>
+            </div>
+            <div className="toolbar-right">
+              <LanguageSwitcher language={language} setLanguage={setLanguage} />
+              <div style={{ margin: '0 10px', width: '1px', height: '20px', background: 'var(--accent-muted)' }}></div>
+              <button className="toolbar-btn danger" onClick={() => navigate(`/campaign/${id}`)}>{curT.quit}</button>
             </div>
           </div>
-          <div className="toolbar-center">
-            <div className="toolbar-info-item"><span>📍</span><span>{data.currentLocation}</span></div>
-            <span style={{ opacity: 0.3 }}>|</span>
-            <div className="toolbar-info-item"><span>🕰️</span><span>{data.currentTimeOfDay}</span></div>
-          </div>
-          <div className="toolbar-right">
-            <LanguageSwitcher language={language} setLanguage={setLanguage} />
-            <div style={{ margin: '0 10px', width: '1px', height: '20px', background: 'var(--accent-muted)' }}></div>
-            <button className="toolbar-btn danger" onClick={() => navigate(`/campaign/${id}`)}>{curT.quit}</button>
-          </div>
-        </div>
+        )}
 
         <div className="live-view-container">
           <div className="live-main-grid">

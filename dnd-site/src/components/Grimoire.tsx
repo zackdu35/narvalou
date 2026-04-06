@@ -3,11 +3,11 @@ export const Grimoire = ({ char, onClose, curT }: { char: any, onClose: () => vo
   return (
     <div className="char-sheet-overlay" onClick={onClose} style={{ zIndex: 4000 }}>
       <div className="char-sheet-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
-        <button className="close-btn" style={{ color: 'var(--accent)' }} onClick={onClose}>×</button>
-        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-          <span style={{ fontSize: '3rem' }}>📜</span>
-          <h2 style={{ margin: 0, fontFamily: 'Cinzel', color: 'var(--accent)', fontSize: '2rem' }}>{curT.grimoireHelp} : {char.name}</h2>
-          <p style={{ opacity: 0.7, fontStyle: 'italic', marginBottom: '20px' }}>{curT.essential}</p>
+        <button className="close-btn" onClick={onClose}>×</button>
+        <div style={{ textAlign: 'center', marginBottom: '15px' }}>
+          <span style={{ fontSize: '2.2rem' }}>📜</span>
+          <h2 style={{ margin: '5px 0', fontFamily: 'Cinzel', color: 'var(--accent)', fontSize: '1.8rem' }}>{curT.grimoireHelp} : {char.name}</h2>
+          <p style={{ opacity: 0.7, fontStyle: 'italic', marginBottom: '15px', fontSize: '0.85rem' }}>{curT.essential}</p>
 
           {char.spellSlots?.max > 0 && (
             <div style={{

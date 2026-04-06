@@ -241,18 +241,21 @@ h1, h2, h3, h4 {
 
 .close-btn {
   position: absolute;
-  top: 20px;
-  right: 20px;
+  top: 12px;
+  right: 15px;
   background: none;
   border: none;
-  color: var(--text-secondary);
-  font-size: 2rem;
+  color: var(--accent);
+  font-size: 2.2rem;
   cursor: pointer;
-  transition: color 0.3s ease;
+  transition: all 0.3s ease;
+  z-index: 5000;
+  line-height: 1;
 }
 
 .close-btn:hover {
-  color: var(--accent);
+  color: #fff;
+  transform: scale(1.1);
 }
 
 .modal-header {
@@ -437,8 +440,9 @@ h1, h2, h3, h4 {
   z-index: 3000;
   display: flex;
   justify-content: center;
-  align-items: center;
-  padding: 20px;
+  align-items: flex-start;
+  padding: 40px 20px;
+  overflow-y: auto;
   animation: fadeIn 0.3s ease;
 }
 
@@ -447,15 +451,15 @@ h1, h2, h3, h4 {
   background-image: url('https://www.transparenttextures.com/patterns/dark-leather.png');
   width: 95%;
   max-width: 1450px;
-  width: 95%;
   border-radius: 8px;
-  box-shadow: 0 0 50px rgba(0,0,0,1), inset 0 0 100px rgba(0,0,0,0.5);
+  box-shadow: 0 0 100px rgba(0,0,0,1), inset 0 0 100px rgba(0,0,0,0.5);
   color: #e0e0e0;
-  padding: 40px;
+  padding: 25px 40px 40px;
   position: relative;
-  overflow-y: auto;
-  max-height: 95vh;
-  border: 2px solid #2c2c34;
+  overflow-y: visible;
+  max-height: none;
+  border: 1px solid #2c2c34;
+  margin-bottom: 40px;
 }
 
 /* Layout Grid */
@@ -537,6 +541,7 @@ h1, h2, h3, h4 {
   padding: 10px;
   font-size: 0.75rem;
   background: rgba(0,0,0,0.2);
+  flex: 1;
 }
 
 .skill-row {
@@ -1406,118 +1411,170 @@ input:focus {
   font-weight: bold;
 }
 
-/* --- CAMPAIGN SELECTION --- */
+/* --- EPIC CAMPAIGN SELECTION REDESIGN --- */
 .campaign-selection-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: var(--bg-color);
-  background-image: radial-gradient(circle at 50% 50%, rgba(212, 175, 55, 0.05) 0%, transparent 70%);
+  background: #0a0a0c;
+  background-image: 
+    linear-gradient(rgba(10, 10, 12, 0.75), rgba(10, 10, 12, 0.96)),
+    url('/assets/dragon_selector_bg.png');
+  background-size: cover;
+  background-position: center;
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 5000;
   overflow-y: auto;
-  padding: 40px 20px;
+  padding: 60px 20px;
 }
 
 .campaign-selection-content {
   width: 100%;
-  max-width: 1000px;
+  max-width: 1200px;
   text-align: center;
+  animation: fadeIn 1s ease-out;
+}
+
+.selector-title {
+  font-size: 3.5rem;
+  margin-bottom: 5px;
+  background: var(--gold-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 10px 40px rgba(0,0,0,0.8), 0 0 20px rgba(212, 175, 55, 0.3);
+  letter-spacing: 5px;
+  animation: fadeInDown 1.2s ease-out;
 }
 
 .campaign-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 30px;
-  margin-top: 50px;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 40px;
+  perspective: 1000px;
 }
 
 .campaign-card {
-  background: var(--card-bg);
-  border: 1px solid var(--accent-muted);
-  border-radius: 15px;
-  padding: 30px;
+  background: rgba(20, 20, 25, 0.85);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(212, 175, 55, 0.15);
+  border-radius: 12px;
+  padding: 0;
   cursor: pointer;
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: all 0.5s cubic-bezier(0.165, 0.84, 0.44, 1);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  position: relative;
   overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+  position: relative;
 }
 
-.campaign-card::before {
+.campaign-card::after {
   content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(180deg, rgba(212, 175, 55, 0.05), transparent);
+  inset: 0;
+  background: linear-gradient(0deg, rgba(212, 175, 55, 0.15) 0%, transparent 60%);
   opacity: 0;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
 }
 
 .campaign-card:hover {
-  transform: translateY(-10px) scale(1.02);
+  transform: translateY(-15px) rotateX(4deg);
   border-color: var(--accent);
-  box-shadow: 0 20px 40px rgba(212, 175, 55, 0.15);
+  border-width: 1px;
+  box-shadow: 0 30px 70px rgba(212, 175, 55, 0.2), 0 0 30px rgba(212, 175, 55, 0.15);
 }
 
-.campaign-card:hover::before {
+.campaign-card:hover::after {
   opacity: 1;
 }
 
 .campaign-card-banner {
-  font-size: 3rem;
-  margin-bottom: 20px;
-  filter: drop-shadow(0 0 10px rgba(212, 175, 55, 0.3));
+  height: 200px;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  background: #000;
+  border-bottom: 2px solid rgba(212, 175, 55, 0.2);
+}
+
+.campaign-card-banner img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: all 0.7s cubic-bezier(0.165, 0.84, 0.44, 1);
+  filter: brightness(0.7) contrast(1.1);
+}
+
+.campaign-card:hover .campaign-card-banner img {
+  transform: scale(1.15);
+  filter: brightness(1) contrast(1.1);
+}
+
+.campaign-card-info {
+  padding: 30px;
+  text-align: left;
 }
 
 .campaign-card h3 {
-  color: var(--accent);
-  font-size: 1.4rem;
-  margin-bottom: 10px;
+  color: #fff;
+  font-size: 1.6rem;
+  margin-bottom: 8px;
   font-family: var(--font-display);
+  letter-spacing: 1px;
 }
 
 .campaign-meta {
   font-family: var(--font-body);
-  font-size: 0.8rem;
-  color: var(--text-secondary);
+  font-size: 0.85rem;
+  color: var(--accent);
   text-transform: uppercase;
-  letter-spacing: 1px;
-  margin-bottom: 25px;
+  letter-spacing: 2px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.last-played {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .continue-btn {
-  background: transparent;
+  width: 100%;
+  background: rgba(212, 175, 55, 0.05);
   border: 1px solid var(--accent);
   color: var(--accent);
-  padding: 10px 25px;
-  border-radius: 20px;
+  padding: 12px;
+  border-radius: 8px;
   font-family: var(--font-display);
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 2px;
   transition: all 0.3s ease;
+  margin-top: 10px;
 }
 
 .campaign-card:hover .continue-btn {
   background: var(--accent);
-  color: var(--bg-color);
-  box-shadow: 0 0 15px var(--accent);
+  color: #000;
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.4);
 }
 
 .campaign-card.add-new {
-  border: 2px dashed var(--accent-muted);
+  border: 2px dashed rgba(212, 175, 55, 0.3);
   background: rgba(255, 255, 255, 0.02);
   justify-content: center;
+  align-items: center;
+  min-height: 380px;
 }
 
 .campaign-card.add-new:hover {
@@ -1526,151 +1583,102 @@ input:focus {
 }
 
 .add-icon {
-  font-size: 4rem;
-  color: var(--accent-muted);
-  transition: all 0.3s ease;
+  font-size: 5rem;
+  color: var(--accent);
+  opacity: 0.3;
+  transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .campaign-card.add-new:hover .add-icon {
-  color: var(--accent);
-  transform: rotate(90deg);
+  opacity: 1;
+  transform: rotate(90deg) scale(1.2);
+  filter: drop-shadow(0 0 15px var(--accent));
 }
 
-/* Premium Inputs */
-.premium-input {
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid var(--accent-muted);
-  color: white;
-  padding: 12px 20px;
-  border-radius: 8px;
-  font-family: var(--font-body);
-  outline: none;
-  transition: all 0.3s ease;
-}
-
-.premium-input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 10px var(--accent-muted);
-  background: rgba(0, 0, 0, 0.6);
-}
-
-.premium-join-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  filter: grayscale(1);
-}
-
-/* --- PREMIUM MODAL --- */
-.premium-modal-content {
-  background: linear-gradient(145deg, #1a1a1f 0%, #0a0a0c 100%);
-  border: 1px solid var(--accent);
-  box-shadow: 0 0 30px rgba(212, 175, 55, 0.15), inset 0 0 20px rgba(0,0,0,0.5);
-  padding: 50px;
-  border-radius: 15px;
-  position: relative;
-  overflow: hidden;
-  width: 95%;
-  max-width: 500px;
-}
-
-.premium-modal-content::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 4px;
-  background: var(--gold-gradient);
-}
-
-.premium-modal-title {
+.add-text {
   font-family: var(--font-display);
   color: var(--accent);
-  font-size: 2rem;
-  margin-bottom: 40px;
-  text-align: center;
+  margin-top: 20px;
   letter-spacing: 2px;
 }
 
+/* Modal Enhancements */
+.premium-modal-content {
+  background-image: 
+    linear-gradient(rgba(10, 10, 12, 0.9), rgba(10, 10, 12, 0.98)),
+    url('https://www.transparenttextures.com/patterns/papyros.png');
+  border: 1px solid var(--accent);
+  box-shadow: 0 0 100px rgba(0,0,0,1), 0 0 30px rgba(212, 175, 55, 0.2);
+  border-radius: 4px;
+  padding: 40px;
+}
+
+.premium-modal-title {
+  font-size: 2.2rem;
+  background: var(--gold-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 30px;
+  text-align: center;
+  font-family: var(--font-display);
+}
+
+.premium-input-field {
+  width: 100%;
+  background: rgba(0,0,0,0.6);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  padding: 15px;
+  color: #fff;
+  font-family: var(--font-body);
+  border-radius: 4px;
+}
+
+.premium-btn-lancer {
+  background: var(--gold-gradient);
+  color: #000;
+  border: none;
+  padding: 15px 40px;
+  font-family: var(--font-display);
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 10px;
+}
+
+.premium-btn-lancer:hover:not(:disabled) {
+  transform: scale(1.05);
+  box-shadow: 0 0 30px rgba(212, 175, 55, 0.5);
+}
+
+.premium-btn-annuler {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #fff;
+  padding: 10px 30px;
+  cursor: pointer;
+}
+
 .premium-form-group {
-  margin-bottom: 25px;
+  margin-bottom: 20px;
 }
 
 .premium-label {
   display: block;
   font-family: var(--font-display);
   color: var(--accent);
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   text-transform: uppercase;
-  letter-spacing: 2px;
-  margin-bottom: 12px;
+  letter-spacing: 1.5px;
+  margin-bottom: 8px;
   opacity: 0.8;
 }
 
 .premium-actions {
   display: flex;
-  gap: 20px;
-  margin-top: 45px;
-}
-
-.premium-btn-lancer {
-  flex: 2;
-  background: transparent;
-  border: 1px solid var(--accent);
-  color: var(--accent);
-  font-family: var(--font-display);
-  font-size: 1rem;
-  padding: 15px;
-  cursor: pointer;
-  letter-spacing: 3px;
-  transition: all 0.4s ease;
-  text-transform: uppercase;
-  border-radius: 4px;
-}
-
-.premium-btn-lancer:hover:not(:disabled) {
-  background: var(--accent);
-  color: var(--bg-color);
-  box-shadow: 0 0 25px var(--accent-muted);
-  transform: translateY(-2px);
-}
-
-.premium-btn-annuler {
-  flex: 1;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #888;
-  font-family: var(--font-display);
-  font-size: 0.85rem;
-  padding: 15px;
-  cursor: pointer;
-  letter-spacing: 2px;
-  transition: all 0.3s ease;
-  text-transform: uppercase;
-  border-radius: 4px;
-}
-
-.premium-btn-annuler:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: white;
-  border-color: rgba(255, 255, 255, 0.3);
-}
-
-.premium-input-field {
-  width: 100%;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(212, 175, 55, 0.3);
-  color: white;
-  padding: 16px;
-  font-size: 1rem;
-  border-radius: 4px;
-  transition: all 0.3s ease;
-  font-family: var(--font-body);
-}
-
-.premium-input-field:focus {
-  border-color: var(--accent);
-  background: rgba(0, 0, 0, 0.5);
-  box-shadow: 0 0 10px rgba(212, 175, 55, 0.1);
-  outline: none;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 35px;
 }

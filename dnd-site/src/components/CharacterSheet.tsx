@@ -4,9 +4,9 @@ export const CharacterSheet = ({ char, onClose, getMod }: { char: any, onClose: 
   return (
     <div className="char-sheet-overlay" onClick={onClose}>
       <div className="char-sheet-content" onClick={e => e.stopPropagation()}>
-        <button className="close-btn" style={{ color: 'var(--accent)', top: '15px', right: '15px', fontSize: '2rem' }} onClick={onClose}>×</button>
+        <button className="close-btn" onClick={onClose}>×</button>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '30px', borderBottom: '2px solid var(--accent)', paddingBottom: '10px', position: 'relative' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '10px', borderBottom: '1px solid var(--accent-muted)', paddingBottom: '10px', position: 'relative' }}>
           <h2 style={{ margin: 0, textAlign: 'left', flex: 1, fontFamily: 'Cinzel', fontSize: '2.5rem', color: 'var(--accent)', textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}>{char.name}</h2>
 
           <div style={{ textAlign: 'right', fontSize: '0.85rem', fontFamily: 'Cinzel', color: 'var(--text-secondary)', paddingRight: '40px' }}>
