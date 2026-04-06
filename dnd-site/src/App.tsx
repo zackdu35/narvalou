@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import './index.css'
 import campaignData from './data/campaign.json'
 import { supabase } from './lib/supabase'
@@ -7,6 +7,85 @@ function App() {
   const [data, setData] = useState(campaignData)
   const [selectedSession, setSelectedSession] = useState<any>(null)
   const [currentStep, setCurrentStep] = useState(0)
+  const [language, setLanguage] = useState<'FR' | 'EN' | 'IT'>('FR')
+
+  const t = {
+    FR: {
+      quit: "QUITTER",
+      map: "CARTE",
+      session: "Session",
+      location: "📍 ",
+      time: "🕰️ ",
+      partyStatus: "Statut du Groupe (Clique pour voir la fiche)",
+      questLog: "📜 Le Journal de Quête",
+      events: "Derniers Événements",
+      backToDirect: "REJOINDRE LA SESSION",
+      adventurers: "Aventuriers",
+      dm: "Maître du Donjon",
+      details: "Session",
+      highlights: "Points Marquants",
+      grimoireHelp: "Grimoire d'aide",
+      essential: "Essentiel pour bien débuter l'aventure",
+      spellSlots: "Emplacements de sorts restants",
+      dmAdvice: "Conseil du MD : N'hésitez pas à demander des précisions sur le canal vocal si besoin. Le D20 est votre meilleur ami !",
+      regionMap: "Carte de la Région",
+      reset: "RESET",
+      emptyChat: "Le journal d'aventure commence ici...",
+      saySomething: "Dites quelque chose...",
+      visualizing: "Visualisation en cours..."
+    },
+    EN: {
+      quit: "LEAVE",
+      map: "MAP",
+      session: "Session",
+      location: "📍 ",
+      time: "🕰️ ",
+      partyStatus: "Party Status (Click to view sheet)",
+      questLog: "📜 Quest Log",
+      events: "Recent Events",
+      backToDirect: "JOIN SESSION",
+      adventurers: "Adventurers",
+      dm: "Dungeon Master",
+      details: "Session",
+      highlights: "Highlights",
+      grimoireHelp: "Help Grimoire",
+      essential: "Essential for starting the adventure",
+      spellSlots: "Remaining Spell Slots",
+      dmAdvice: "DM Tip: Don't hesitate to ask for clarification on the voice channel if needed. The D20 is your best friend!",
+      regionMap: "Region Map",
+      reset: "RESET",
+      emptyChat: "The adventure log begins here...",
+      saySomething: "Say something...",
+      visualizing: "Visualizing..."
+    },
+    IT: {
+      quit: "ESCI",
+      map: "MAPPA",
+      session: "Sessione",
+      location: "📍 ",
+      time: "🕰️ ",
+      partyStatus: "Stato del Gruppo (Clicca per la scheda)",
+      questLog: "📜 Diario delle Missioni",
+      events: "Eventi Recenti",
+      backToDirect: "UNISCITI ALLA SESSIONE",
+      adventurers: "Avventurieri",
+      dm: "Maestro del Dungeon",
+      details: "Sessione",
+      highlights: "Punti Salienti",
+      grimoireHelp: "Grimorio d'Aiuto",
+      essential: "Essenziale per iniziare l'avventura",
+      spellSlots: "Slot Magia Rimanenti",
+      dmAdvice: "Consiglio del MD: Non esitate a chiedere chiarimenti sul canale vocale se necessario. Il D20 è il vostro migliore amico!",
+      regionMap: "Mappa della Regione",
+      reset: "RESET",
+      emptyChat: "Il diario dell'avventura inizia qui...",
+      saySomething: "Dì qualcosa...",
+      visualizing: "Visualizzazione in corso..."
+    }
+  }
+
+  const curT = t[language]
+
   
   // States pour le Live (Initialisé avec un placeholder ou le fallback local)
   const [isLiveMode, setIsLiveMode] = useState(false)
@@ -339,8 +418,8 @@ function App() {
           <button className="close-btn" style={{ color: 'var(--accent)' }} onClick={onClose}>×</button>
           <div style={{ textAlign: 'center', marginBottom: '20px' }}>
             <span style={{ fontSize: '3rem' }}>📜</span>
-            <h2 style={{ margin: 0, fontFamily: 'Cinzel', color: 'var(--accent)', fontSize: '2rem' }}>Grimoire d'aide : {char.name}</h2>
-            <p style={{ opacity: 0.7, fontStyle: 'italic', marginBottom: '20px' }}>Essentiel pour bien débuter l'aventure</p>
+            <h2 style={{ margin: 0, fontFamily: 'Cinzel', color: 'var(--accent)', fontSize: '2rem' }}>{curT.grimoireHelp} : {char.name}</h2>
+            <p style={{ opacity: 0.7, fontStyle: 'italic', marginBottom: '20px' }}>{curT.essential}</p>
             
             {char.spellSlots?.max > 0 && (
               <div style={{ 
@@ -353,7 +432,7 @@ function App() {
                 boxShadow: '0 0 15px rgba(74, 144, 226, 0.2)'
               }}>
                 <span style={{ color: '#4a90e2', fontSize: '0.8rem', letterSpacing: '1px', fontWeight: 'bold', textTransform: 'uppercase' }}>
-                  ⚡ Emplacements de sorts restants : 
+                  ⚡ {curT.spellSlots} : 
                   <span style={{ color: '#fff', fontSize: '1.2rem', marginLeft: '10px' }}>{char.spellSlots.current} / {char.spellSlots.max}</span>
                 </span>
               </div>
@@ -370,7 +449,7 @@ function App() {
             ))}
           </div>
           <div style={{ marginTop: '30px', padding: '15px', background: 'rgba(212, 175, 55, 0.05)', borderRadius: '8px', fontSize: '0.8rem', border: '1px dashed var(--accent)' }}>
-            <strong style={{ color: 'var(--accent)' }}>💡 Conseil du MD :</strong> N'hésitez pas à demander des précisions sur le canal vocal si besoin. Le D20 est votre meilleur ami !
+            <strong style={{ color: 'var(--accent)' }}>💡 {curT.dmAdvice.split(':')[0]} :</strong> {curT.dmAdvice.split(':')[1]}
           </div>
         </div>
       </div>
@@ -402,7 +481,7 @@ function App() {
               <button 
                 onClick={() => setZoom(1)}
                 style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid var(--accent)', color: 'var(--accent)', padding: '0 10px', height: '30px', borderRadius: '5px', cursor: 'pointer', fontSize: '0.7rem' }}
-              >RESET</button>
+              >{curT.reset}</button>
             </div>
           </div>
 
@@ -442,7 +521,7 @@ function App() {
       <div className="common-chat-container">
         <div className="common-chat-messages">
           {commonMessages.length === 0 && (
-            <div className="chat-empty">Le journal d'aventure commence ici...</div>
+            <div className="chat-empty">{curT.emptyChat}</div>
           )}
           {commonMessages.map((m: any, i: number) => {
             const senderChar = data.characters.find((c: any) => c.id === m.sender_id)
@@ -467,12 +546,58 @@ function App() {
         <form className="common-chat-input" onSubmit={handleSend}>
           <input 
             type="text" 
-            placeholder="Dites quelque chose..." 
+            placeholder={curT.saySomething} 
             value={typedMessage} 
             onChange={e => setTypedMessage(e.target.value)} 
           />
           <button type="submit">↪</button>
         </form>
+      </div>
+    )
+  }
+
+  const LanguageSwitcher = ({ isHome = false }: { isHome?: boolean }) => {
+    const [isOpen, setIsOpen] = useState(false)
+    const containerRef = useRef<HTMLDivElement>(null)
+    const langs: { code: 'FR' | 'EN' | 'IT', flag: string, label: string }[] = [
+      { code: 'FR', flag: '🇫🇷', label: 'Français' },
+      { code: 'EN', flag: '🇬🇧', label: 'English' },
+      { code: 'IT', flag: '🇮🇹', label: 'Italiano' }
+    ]
+    const active = langs.find(l => l.code === language)!
+
+    useEffect(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+        if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+          setIsOpen(false)
+        }
+      }
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }, [])
+
+    return (
+      <div className={`premium-lang-selector ${isHome ? 'is-home' : ''}`} ref={containerRef}>
+        <button className="lang-trigger" onClick={() => setIsOpen(!isOpen)}>
+          <span className="flag">{active.flag}</span>
+          {isHome && <span className="code">{active.code}</span>}
+          <span className={`arrow ${isOpen ? 'open' : ''}`}>▾</span>
+        </button>
+        {isOpen && (
+          <div className="lang-dropdown">
+            {langs.map(l => (
+              <button 
+                key={l.code} 
+                className={`lang-option ${l.code === language ? 'selected' : ''}`}
+                onClick={() => { setLanguage(l.code); setIsOpen(false); }}
+              >
+                <span className="flag">{l.flag}</span>
+                <span className="label">{l.label}</span>
+                {l.code === language && <span className="check">✓</span>}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     )
   }
@@ -503,11 +628,11 @@ function App() {
         <div className="live-game-toolbar">
           <div className="toolbar-left">
             <button className="toolbar-btn" onClick={() => setIsMapVisible(true)}>
-              <span>🗺️</span> CARTE
+              <span>🗺️</span> {curT.map}
             </button>
             <div style={{ margin: '0 10px', width: '1px', height: '20px', background: 'var(--accent-muted)' }}></div>
             <div className="toolbar-info-item">
-              <span className="label">Session</span>
+              <span className="label">{curT.session}</span>
               <span style={{ 
                 color: 'var(--accent)', 
                 fontSize: '1.2rem', 
@@ -534,9 +659,11 @@ function App() {
           </div>
 
           <div className="toolbar-right">
+            <LanguageSwitcher />
+            <div style={{ margin: '0 10px', width: '1px', height: '20px', background: 'var(--accent-muted)' }}></div>
             <button className="toolbar-btn danger" onClick={() => setIsLiveMode(false)}>
               <span className="live-indicator-dot pulsing"></span>
-              QUITTER
+              {curT.quit}
             </button>
           </div>
         </div>
@@ -545,7 +672,7 @@ function App() {
           <div className="live-main-grid">
             <div className="live-sidebar">
               <div className="sidebar-panel">
-                <h4>Statut du Groupe (Clique pour voir la fiche)</h4>
+                <h4>{curT.partyStatus}</h4>
                 <div className="party-status-list">
                   {liveData.partyStatus.map((char: any) => {
                     const originalChar = data.characters.find(c => c.id === char.id)
@@ -593,7 +720,7 @@ function App() {
               
               {liveData.activeQuests && liveData.activeQuests.length > 0 && (
                 <div className="sidebar-panel">
-                  <h4>📜 Le Journal de Quête</h4>
+                  <h4>{curT.questLog}</h4>
                   <div className="quest-list">
                     {liveData.activeQuests.map((quest: any, i: number) => (
                       <div key={i} className={`quest-item priority-${quest.priority}`}>
@@ -606,7 +733,7 @@ function App() {
               )}
 
               <div className="sidebar-panel">
-                <h4>Derniers Événements</h4>
+                <h4>{curT.events}</h4>
                 <ul className="event-feed">
                   {liveData.recentEvents.map((evt: string, i: number) => (
                     <li key={i} className="event-item">{evt}</li>
@@ -621,7 +748,7 @@ function App() {
                 {liveData.currentScene.isGenerating && (
                   <div className="generating-overlay">
                     <div className="spinner"></div>
-                    <p style={{ fontFamily: 'Cinzel', letterSpacing: '2px', fontSize: '0.8rem' }}>Visualisation en cours...</p>
+                    <p style={{ fontFamily: 'Cinzel', letterSpacing: '2px', fontSize: '0.8rem' }}>{curT.visualizing}</p>
                   </div>
                 )}
                 <img 
@@ -653,10 +780,9 @@ function App() {
   return (
     <div className="app">
       {!isLiveMode && (
-        <button className="live-toggle-btn" onClick={() => setIsLiveMode(true)}>
-          <span className="live-indicator-dot pulsing"></span>
-          VOIR LE DIRECT
-        </button>
+        <div style={{ position: 'fixed', top: '40px', right: '40px', zIndex: 2000, display: 'flex', gap: '20px', alignItems: 'center' }}>
+          <LanguageSwitcher isHome />
+        </div>
       )}
 
       {selectedSession && (
@@ -750,9 +876,12 @@ function App() {
         <div className="container">
           <h1 className="hero-title">{data.campaignName}</h1>
           <p className="hero-subtitle">{data.summary}</p>
-          <div className="dm-badge" style={{ marginTop: '30px', color: '#d4af37', fontFamily: 'Cinzel', fontSize: '1.2rem' }}>
-            Maître du Donjon: {data.dm}
+          <div className="dm-badge" style={{ marginTop: '20px', color: '#d4af37', fontFamily: 'Cinzel', fontSize: '1.2rem' }}>
+            {curT.dm}: {data.dm}
           </div>
+          <button className="premium-join-btn" onClick={() => setIsLiveMode(true)}>
+            {curT.backToDirect}
+          </button>
           <div className="scroll-indicator" style={{ position: 'absolute', bottom: '40px', left: '50%', transform: 'translateX(-50%)', opacity: '0.6' }}>
             <span style={{ fontSize: '2rem', display: 'block', animation: 'bounce 2s infinite' }}>↓</span>
           </div>
@@ -760,7 +889,7 @@ function App() {
       </section>
 
       <div className="container">
-        <h2 className="section-title">Aventuriers</h2>
+        <h2 className="section-title">{curT.adventurers}</h2>
         <div className="character-grid">
           {data.characters.map((char) => (
             <div className="character-card" key={char.id}>
