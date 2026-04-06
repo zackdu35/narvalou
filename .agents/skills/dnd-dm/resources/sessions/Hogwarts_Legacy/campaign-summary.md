@@ -8,5 +8,5 @@
 1. **La Cérémonie de Répartition**: Traverser le lac et entrer dans la Grande Salle pour découvrir votre maison.
 
 ## Membres de l'Équipe
-- @Nouveau_Sorcier (En attente d'identification...)
+- **@Zac** (Zaccharie) - Étudiant de Première Année (Maison souhaitée: Serdaigle)
 

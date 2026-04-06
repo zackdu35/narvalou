@@ -1,0 +1,26 @@
+{
+  "currentLocation": "Poudlard - Table des Serdaigle",
+  "currentTimeOfDay": "Nuit",
+  "currentScene": {
+    "description": "Le festin commence ! Sous le ciel étoilé de la Grande Salle, vous discutez avec vos camarades de Serdaigle des cours à venir. L'air est rempli de rires et de la bonne odeur des rôtis et des tourtes.",
+    "isGenerating": false,
+    "image": ""
+  },
+  "partyStatus": [
+    {
+      "id": "zac",
+      "name": "Zac",
+      "hp": 10,
+      "maxHp": 10,
+      "status": "Prêt",
+      "house": "Ravenclaw"
+    }
+  ],
+  "activeQuests": [
+    {
+      "title": "Le Festin de Bienvenue",
+      "description": "Faites connaissance avec vos camarades de maison.",
+      "priority": "normal"
+    }
+  ]
+}

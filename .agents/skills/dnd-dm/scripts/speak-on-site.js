@@ -39,15 +39,17 @@ async function main() {
   let text = '';
   let voiceKey = 'narrator';
   let npcName = 'DM';
+  let campaignId = 3; // Default to campaign 3 for Potter
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--text') text = args[++i];
     if (args[i] === '--voice') voiceKey = args[++i];
     if (args[i] === '--npc') npcName = args[++i];
+    if (args[i] === '--campaign') campaignId = parseInt(args[++i]);
   }
 
   if (!text) {
-    console.error('Usage: node scripts/speak-on-site.js --text "Hello" [--voice narrator] [--npc DM]');
+    console.error('Usage: node scripts/speak-on-site.js --text "Hello" [--voice narrator] [--npc DM] [--campaign 1]');
     process.exit(1);
   }
 
@@ -113,9 +115,10 @@ async function main() {
     const { error: msgError } = await supabase
       .from('messages')
       .insert([{
-        sender_id: 'DM',
+        sender_id: npcName,
         receiver_id: 'global',
-        content: finalContent
+        content: finalContent,
+        campaign_id: campaignId
       }]);
 
     if (msgError) throw new Error(`Message insert failed: ${msgError.message}`);

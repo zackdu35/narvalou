@@ -397,8 +397,9 @@ In this campaign, you are more than a narrator; you are a **Technical DM**. Your
 ### 📸 The Visual Sync (`updateLive.js`)
 - **Function**: Updates the `live_game` state (Images, HP, Quests).
 - **Core Rules**:
-  - **Image First**: Generate/Set the scene image *before* describing the new location.
-  - **HP Last**: Update the HP bars *after* narrating the impact in combat.
+  - **Chat First**: Always post your narration or NPC dialogue via `scripts/speak-on-site.js` *before* updating the visuals.
+  - **Image Second**: Generate/Update the scene image *after* the initial narration.
+  - **Sync (BDD) Last**: Update the state (HP, Location, Quests) *after* the players have the story context.
   - **Quests Constant**: Always maintain at least 2-3 active objectives in the quest log.
 
 ### 🎤 NPC Voice Acting (`speak-npc.js`)
@@ -417,11 +418,10 @@ In this campaign, you are more than a narrator; you are a **Technical DM**. Your
 - [ ] Verify player character sheets in `sessions/`
 
 **During session**:
-- [ ] Recap previous session cinematically
-- [ ] Use `scripts/updateLive.js` for every location change
-- [ ] Respond to "répond" signals via `scripts/speakTerm.js`
-- [ ] Update character HP bars in real-time
-- [ ] Append major events to `campaign-log.md`
+- [ ] **Talk First**: Respond to "répond" signals via `scripts/speak-on-site.js`
+- [ ] **Visualize**: Generate new scene images if necessary
+- [ ] **Sync (BDD)**: Update character HP, Location, and Quests via `scripts/dm-sync.js`
+- [ ] Record major events in `campaign-log.md`
 
 **After session**:
 - [ ] Set `active: false` in the cloud board

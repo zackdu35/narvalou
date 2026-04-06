@@ -3,7 +3,7 @@ import React, { useState } from 'react'
 export const CommonChat = ({ messages, data, curT, sendMessage, supabase }: { messages: any[], data: any, curT: any, sendMessage: (text: string, receiverId: string) => void, supabase: any }) => {
   const [typedMessage, setTypedMessage] = useState('')
 
-  const commonMessages = messages.filter((m: any) => m.receiver_id === 'global')
+  const commonMessages = messages.filter((m: any) => m.receiver_id === 'global' && !m.content?.includes('[REFRESH') && !m.content?.includes('[SYNC_SCENE'))
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault()

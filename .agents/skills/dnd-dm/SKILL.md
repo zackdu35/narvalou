@@ -220,22 +220,21 @@ Wait for the player's explicit **"répond"** signal in the main chat before taki
     - First, get the current state from Supabase to ensure your narration is accurate (HP, current scene, location).
     - Use the `scripts/dm-sync.js` (or similar) to query or simply check the latest `character-*.md` and `campaign-summary.md` files if strictly following file-base, but ideally query SQL if possible.
 
-2. **SPEAK (Narrate)**:
-    - Write your immersive response. Use the `scripts/speakTerm.js` CLI to post it to the site chat:
+1. **SPEAK (Narrate)**:
+    - Write your immersive response. This is ALWAYS the first action. Use the `scripts/speak-on-site.js` CLI to post it to the site chat:
       ```bash
-      node scripts/speakTerm.js "[PNJ Name]: Your response text..."
+      node scripts/speak-on-site.js --text "[PNJ Name]: Your response text..." --npc "Name" --campaign [ID]
       ```
 
-3. **VISUALIZE & SYNC (Post-update)**:
-    - **IF** the scene changed or major damage was dealt (or a quest added):
-        - `generate_image` for the new context.
-        - Update character sheets/logs locally.
-        - Immediately call `scripts/dm-sync.js` with the updated JSON state and the new image path to refresh the board for ALL players.
-        - **Workflow**: Create `/tmp/state.json` -> Run `node scripts/dm-sync.js /tmp/state.json [img_path] [campaign_id]`.
+2. **VISUALIZE (Optional)**:
+    - **IF** the scene changed, generate a new image for the context:
+      - `generate_image` based on the new description.
 
-#### 📊 State Management (Global Sync)
-After every major turn, you MUST:
-- **Update Character Sheets**: Reflect any HP/spell changes in `resources/sessions/<campaign-name>/character-*.md`.
+3. **SYNC (State Update)**:
+    - Update character sheets/logs locally.
+    - Immediately call `scripts/dm-sync.js` with the updated JSON state and the (optional) new image path to refresh the board for ALL players.
+    - **Workflow**: Create `.tmp/state.json` -> Run `node scripts/dm-sync.js .tmp/state.json [img_path] [campaign_id]`.
+    - **Note**: Use a local `.tmp/` directory in the workspace for temporary state files. Character Sheets**: Reflect any HP/spell changes in `resources/sessions/<campaign-name>/character-*.md`.
 - **Update Campaign Log**: Record the narrative turn in `resources/sessions/<campaign-name>/campaign-log.md`.
 - **Update Live Board**: Sync the cloud state using `scripts/updateLive.js`.
 

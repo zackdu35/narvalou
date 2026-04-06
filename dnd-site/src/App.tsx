@@ -223,12 +223,14 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
       
       const fetchInitial = async () => {
         try {
+          console.log(`📡 Fetching initial data for campaign ${id}...`);
           const { data: camp } = await supabase!.from('campaigns').select('*').eq('id', id).single()
           const { data: chars } = await supabase!.from('characters').select('*').eq('campaign_id', id)
           const { data: quests } = await supabase!.from('quests').select('*').eq('campaign_id', id)
           const { data: sessions } = await supabase!.from('sessions').select('*').eq('campaign_id', id).order('session_number', { ascending: true })
 
           if (camp) {
+            console.log(`✅ Data fetched successfully for: ${camp.name}`);
             const merged = {
               campaignName: camp.name,
               universe: camp.universe,
@@ -275,7 +277,9 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
             }
             setData(merged)
           }
-        } catch (e) { console.error(e) }
+        } catch (e) { 
+          console.error("❌ Error fetching campaign data:", e) 
+        }
         setIsLoading(false)
       }
 
@@ -283,9 +287,14 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
 
       // Realtime sub if live
       if (mode === 'live') {
-        const subCamp = supabase!.channel(`camp-${id}`).on('postgres_changes', { event: '*', schema: 'public', table: 'campaigns', filter: `id=eq.${id}` }, () => fetchInitial()).subscribe()
-        const subChars = supabase!.channel(`chars-${id}`).on('postgres_changes', { event: '*', schema: 'public', table: 'characters', filter: `campaign_id=eq.${id}` }, () => fetchInitial()).subscribe()
-        const subQuests = supabase!.channel(`quests-${id}`).on('postgres_changes', { event: '*', schema: 'public', table: 'quests', filter: `campaign_id=eq.${id}` }, () => fetchInitial()).subscribe()
+        const handleUpdate = (payload: any) => {
+          console.log("⚡ Realtime change detected:", payload.table, payload.eventType);
+          fetchInitial();
+        };
+
+        const subCamp = supabase!.channel(`camp-${id}`).on('postgres_changes', { event: '*', schema: 'public', table: 'campaigns', filter: `id=eq.${id}` }, handleUpdate).subscribe((status) => console.log(`🔌 Campaign sub: ${status}`))
+        const subChars = supabase!.channel(`chars-${id}`).on('postgres_changes', { event: '*', schema: 'public', table: 'characters', filter: `campaign_id=eq.${id}` }, handleUpdate).subscribe()
+        const subQuests = supabase!.channel(`quests-${id}`).on('postgres_changes', { event: '*', schema: 'public', table: 'quests', filter: `campaign_id=eq.${id}` }, handleUpdate).subscribe()
         
         return () => { 
           supabase!.removeChannel(subCamp)
@@ -301,12 +310,31 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
   // Chat listener
   useEffect(() => {
     if (!supabase || mode !== 'live' || !id) return
+    
+    // Create a stable reference to fetchInitial by providing it in the parent or fetching directly
+    const triggerRefetch = async () => {
+      const { data: camp } = await supabase!.from('campaigns').select('scene_description, scene_image, current_location, current_time_of_day, is_generating').eq('id', id).single();
+      if (camp) {
+        setData((prev: any) => ({
+          ...prev,
+          currentLocation: camp.current_location,
+          currentTimeOfDay: camp.current_time_of_day,
+          currentScene: {
+            description: camp.scene_description,
+            image: camp.scene_image,
+            isGenerating: camp.is_generating
+          }
+        }));
+      }
+    };
+
     const fetchMsgs = async () => {
-      const { data } = await supabase!.from('messages')
+      const { data: msgs } = await supabase!.from('messages')
         .select('*')
         .eq('campaign_id', id)
+        .not('content', 'like', '[REFRESH%') // Hide ALL refresh signals
         .order('created_at', { ascending: true })
-      if (data) setMessages(data)
+      if (msgs) setMessages(msgs)
     }
     fetchMsgs()
     
@@ -318,7 +346,49 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
         filter: `campaign_id=eq.${id}`
       }, (payload) => {
         const newMsg = payload.new
+        
+        // --- REAL-TIME REFRESH SIGNAL (Bridge v3) ---
+        const content = newMsg.content || "";
+        if (content.includes('[SYNC_SCENE:')) {
+          console.log("🔴 [SYSTEM] SYNC SIGNAL RECEIVED! Parsing payload...");
+          try {
+            const jsonPart = content.split('[SYNC_SCENE:')[1].split(']')[0];
+            const data = JSON.parse(jsonPart);
+            console.log("📍 Applying Realtime Update:", data.location);
+            setData((prev: any) => ({
+              ...prev,
+              currentLocation: data.location || prev.currentLocation,
+              currentTimeOfDay: data.time || prev.currentTimeOfDay,
+              currentScene: {
+                ...prev.currentScene,
+                description: data.description || prev.currentScene.description,
+                image: data.image || prev.currentScene.image,
+                isGenerating: false
+              }
+            }));
+          } catch (e) {
+             console.error("❌ Failed to parse sync signal:", e);
+             triggerRefetch();
+          }
+          return; // Skip adding to chat UI
+        }
+
+        // Catch legacy signals too
+        if (content.includes('[REFRESH]')) {
+           console.log("🔄 [SYSTEM] Legacy refresh signal detected.");
+           triggerRefetch();
+           return;
+        }
+
+        console.log("💬 New message received:", newMsg.sender_id);
         setMessages(prev => [...prev, newMsg])
+        
+        // --- DM SPEECH FALLBACK ---
+        if (newMsg.sender_id === 'DM' || newMsg.sender_id === 'Hagrid' || newMsg.sender_id === 'Le Maître du Donjon') {
+          console.log("🧙‍♂️ DM spoke, preparing fallback sync...");
+          setTimeout(triggerRefetch, 3000); 
+        }
+
         const audioMatch = newMsg.content.match(/\[AUDIO:(.*?)\]/)
         if (audioMatch?.[1]) new Audio(audioMatch[1]).play().catch(e => console.error(e))
       }).subscribe()

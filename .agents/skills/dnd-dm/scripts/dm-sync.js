@@ -100,6 +100,21 @@ async function sync(jsonPath, imagePath) {
     console.log(`📍 Lieu: ${newState.currentLocation}`)
     console.log(`🎭 Scène: ${newState.currentScene?.description?.substring(0, 50)}...`)
 
+    // --- 5. SIGNAL REFRESH TO CLIENTS (Realtime Bridge v3) ---
+    console.log(`📡 Envoi du signal de rafraîchissement avec données...`)
+    const signalData = {
+      location: newState.currentLocation,
+      time: newState.currentTimeOfDay,
+      description: newState.currentScene?.description,
+      image: newState.currentScene?.image
+    }
+    await supabase.from('messages').insert([{
+      sender_id: 'SYSTEM',
+      receiver_id: 'global',
+      content: `[SYNC_SCENE:${JSON.stringify(signalData)}]`,
+      campaign_id: campaignId
+    }])
+
   } catch (err) {
     console.error(`\n❌ ERREUR SYNC: ${err.message}`)
     process.exit(1)
