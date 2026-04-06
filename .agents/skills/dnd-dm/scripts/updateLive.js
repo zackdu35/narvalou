@@ -26,18 +26,19 @@ async function updateLive() {
 
   try {
     const liveData = JSON.parse(dataStr)
+    const campaignId = process.argv[3] || 1
     
-    // On update l'ID 1 qui est notre session active
+    // On update l'ID spécifié qui est notre session active
     const { error } = await supabase
       .from('live_game')
       .update({ 
         data: liveData,
         updated_at: new Date().toISOString()
       })
-      .eq('id', 1)
+      .eq('id', campaignId)
 
     if (error) throw error
-    console.log("✅ Live synchronisé avec le Cloud Supabase !")
+    console.log(`✅ Live (Campagne #${campaignId}) synchronisé avec le Cloud Supabase !`)
   } catch (err) {
     console.error("❌ Erreur de synchro Live:", err.message)
     process.exit(1)

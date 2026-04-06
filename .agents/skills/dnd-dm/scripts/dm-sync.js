@@ -45,19 +45,20 @@ async function sync(jsonPath, imagePath) {
       newState.currentScene.isGenerating = false
     }
 
-    // 2. Update live_game (id: 1)
-    console.log(`🔄 Updating live board (id: 1)...`)
+    // 2. Update live_game for specific campaign
+    const campaignId = process.argv[4] || 1
+    console.log(`🔄 Updating live board (id: ${campaignId})...`)
     const { error: updateError } = await supabase
       .from('live_game')
       .update({ 
         data: newState,
         updated_at: new Date().toISOString()
       })
-      .eq('id', 1)
+      .eq('id', campaignId)
       
     if (updateError) throw updateError
     
-    console.log(`✨ Live board synced successfully!`)
+    console.log(`✨ Live board for Campaign #${campaignId} synced successfully!`)
     console.log(`📍 Location: ${newState.currentLocation}`)
 
   } catch (err) {
@@ -70,7 +71,7 @@ const jsonArg = process.argv[2]
 const imageArg = process.argv[3]
 
 if (!jsonArg) {
-  console.error("Usage: node scripts/dm-sync.js <path_to_json> [path_to_image]")
+  console.error("Usage: node scripts/dm-sync.js <path_to_json> [path_to_image] [campaign_id]")
   process.exit(1)
 }
 
