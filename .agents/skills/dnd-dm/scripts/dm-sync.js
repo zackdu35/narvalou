@@ -82,17 +82,27 @@ async function sync(jsonPath, imagePath) {
     if (newState.activeQuests) {
       console.log(`📜 Synchronisation des quêtes...`)
       for (const quest of newState.activeQuests) {
-        // On essaie d'insérer ou d'ignorer si elle existe déjà (basé sur le titre)
-        const { error: questError } = await supabase
+        // Look for existing quest with same title in this campaign
+        const { data: existing } = await supabase
           .from('quests')
-          .upsert({
+          .select('id')
+          .eq('campaign_id', campaignId)
+          .eq('title', quest.title)
+          .maybeSingle()
+
+        if (existing) {
+          await supabase.from('quests').update({
+            description: quest.description,
+            priority: quest.priority || 'normal'
+          }).eq('id', existing.id)
+        } else {
+          await supabase.from('quests').insert({
             campaign_id: campaignId,
             title: quest.title,
             description: quest.description,
             priority: quest.priority || 'normal'
-          }, { onConflict: 'campaign_id, title' })
-
-        if (questError) console.warn("⚠️ Erreur synchronisation quête:", questError.message)
+          })
+        }
       }
     }
 

@@ -1,8 +1,8 @@
 {
-  "currentLocation": "Poudlard - Grande Salle (Discours)",
+  "currentLocation": "Poudlard - Salle Commune de Serdaigle",
   "currentTimeOfDay": "Nuit",
   "currentScene": {
-    "description": "Dumbledore se lève et prononce quelques mots mystérieux : 'Saugrenu ! Gras-double ! Bizarre ! Et Pinçon !'. Aussitôt, les tables se remplissent d'un festin encore plus somptueux. Les élèves exultent.",
+    "description": "Le heurtoir en forme d'aigle a validé votre réponse et la porte s'est ouverte. Vous entrez dans un espace circulaire baigné d'une douce lumière bleue. Des tables chargées de livres anciens et des fauteuils en velours vous accueillent sous une voute parsemée de constellations d'argent.",
     "isGenerating": false,
     "image": ""
   },
@@ -12,15 +12,15 @@
       "name": "Zac",
       "hp": 10,
       "maxHp": 10,
-      "status": "Prêt",
+      "status": "Inspiré",
       "house": "Ravenclaw"
     }
   ],
   "activeQuests": [
     {
-      "title": "Le Festin de Bienvenue",
-      "description": "Écoutez le discours de Dumbledore.",
-      "priority": "normal"
+      "title": "Un Moment de Calme",
+      "description": "Profitez de la tranquillité de votre salle commune pour réviser vos premiers sorts.",
+      "priority": "low"
     }
   ]
 }
