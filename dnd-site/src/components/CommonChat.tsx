@@ -2,7 +2,8 @@ import React, { useState } from 'react'
 
 export const CommonChat = ({ messages, currentRole, data, curT, sendMessage, supabase }: { messages: any[], currentRole: string | null, data: any, curT: any, sendMessage: (text: string, receiverId: string) => void, supabase: any }) => {
   const [typedMessage, setTypedMessage] = useState('')
-  if (!currentRole) return null;
+  // if (!currentRole) return null;
+  const normalizedRole = currentRole || 'Nouveau Sorcier';
 
   const commonMessages = messages.filter((m: any) => m.receiver_id === 'global')
 

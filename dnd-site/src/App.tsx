@@ -300,24 +300,41 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
 
   // Chat listener
   useEffect(() => {
-    if (!supabase || mode !== 'live') return
+    if (!supabase || mode !== 'live' || !id) return
     const fetchMsgs = async () => {
-      const { data } = await supabase!.from('messages').select('*').order('created_at', { ascending: true })
+      const { data } = await supabase!.from('messages')
+        .select('*')
+        .eq('campaign_id', id)
+        .order('created_at', { ascending: true })
       if (data) setMessages(data)
     }
     fetchMsgs()
-    const channel = supabase!.channel('chat').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
-      const newMsg = payload.new
-      setMessages(prev => [...prev, newMsg])
-      const audioMatch = newMsg.content.match(/\[AUDIO:(.*?)\]/)
-      if (audioMatch?.[1]) new Audio(audioMatch[1]).play().catch(e => console.error(e))
-    }).subscribe()
+    
+    const channel = supabase!.channel(`chat-${id}`)
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'messages',
+        filter: `campaign_id=eq.${id}`
+      }, (payload) => {
+        const newMsg = payload.new
+        setMessages(prev => [...prev, newMsg])
+        const audioMatch = newMsg.content.match(/\[AUDIO:(.*?)\]/)
+        if (audioMatch?.[1]) new Audio(audioMatch[1]).play().catch(e => console.error(e))
+      }).subscribe()
+      
     return () => { supabase!.removeChannel(channel) }
-  }, [mode])
+  }, [mode, id])
 
   const sendMessage = async (text: string, receiverId: string) => {
-    if (!supabase || !currentRole) return
-    await supabase.from('messages').insert([{ sender_id: currentRole, receiver_id: receiverId, content: text.trim() }])
+    if (!supabase) return
+    const sender = currentRole || 'Guest_' + Math.random().toString(36).substr(2, 4)
+    await supabase.from('messages').insert([{ 
+      sender_id: sender, 
+      receiver_id: receiverId, 
+      content: text.trim(),
+      campaign_id: id
+    }])
   }
 
   if (isLoading) return (
@@ -511,6 +528,13 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
                   <div className="stat-item"><span>{char.stats.wis}</span>SAG</div>
                   <div className="stat-item"><span>{char.stats.cha}</span>CHA</div>
                 </div>
+                <button 
+                  className="premium-btn-lancer" 
+                  style={{ width: '100%', marginTop: '20px', padding: '8px', fontSize: '0.9rem' }}
+                  onClick={() => navigate(`/campaign/${id}/live?player=${char.id.toLowerCase()}`)}
+                >
+                  Incarner {char.name}
+                </button>
               </div>
             </div>
           ))}
