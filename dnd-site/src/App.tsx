@@ -11,7 +11,6 @@ function App() {
   // States pour le Live (Initialisé avec un placeholder ou le fallback local)
   const [isLiveMode, setIsLiveMode] = useState(false)
   const [liveData, setLiveData] = useState<any>(null)
-  const [lastFetched, setLastFetched] = useState(Date.now())
   const [selectedCharacter, setSelectedCharacter] = useState<any>(null)
   const [activeGrimoire, setActiveGrimoire] = useState<any>(null)
   const [isMapVisible, setIsMapVisible] = useState(false)
@@ -58,7 +57,6 @@ function App() {
               // On prend le premier record (ou celui avec id=1)
               const session = initial[0]
               setLiveData(session.data)
-              setLastFetched(Date.now())
             }
           } catch (err) {
             console.error("Exception lors du fetch Supabase:", err)
@@ -90,7 +88,6 @@ function App() {
           }, (payload) => {
             console.log('Update reçue du cloud !', payload.new.data)
             setLiveData(payload.new.data)
-            setLastFetched(Date.now())
           })
           .subscribe()
       }
@@ -546,30 +543,6 @@ function App() {
 
         <div className="live-view-container">
           <div className="live-main-grid">
-            <div className="live-scene-card">
-              <div className="live-image-wrapper">
-                {liveData.currentScene.isGenerating && (
-                  <div className="generating-overlay">
-                    <div className="spinner"></div>
-                    <p style={{ fontFamily: 'Cinzel', letterSpacing: '2px', fontSize: '0.8rem' }}>Visualisation en cours...</p>
-                  </div>
-                )}
-                <img 
-                  src={liveData.currentScene.image} 
-                  alt="Scène actuelle" 
-                  key={liveData.currentScene.image}
-                  style={{ opacity: liveData.currentScene.isGenerating ? 0.3 : 1 }}
-                  onError={(e) => { e.currentTarget.src = 'https://via.placeholder.com/800x450/1a1a1f/d4af37?text=Scène+D%26D+en+direct' }}
-                />
-              </div>
-              <div className="live-caption-box">
-                <p className="live-description">
-                  {liveData.currentScene.description}
-                </p>
-                <CommonChat />
-              </div>
-            </div>
-
             <div className="live-sidebar">
               <div className="sidebar-panel">
                 <h4>Statut du Groupe (Clique pour voir la fiche)</h4>
@@ -604,8 +577,8 @@ function App() {
                           <div 
                             className="hp-bar-fill" 
                             style={{ 
-                              width: `${hpPercent}%`,
-                              backgroundColor: hpPercent < 30 ? '#ff4d4d' : '#2ecc71'
+                                width: `${hpPercent}%`,
+                                backgroundColor: hpPercent < 30 ? '#ff4d4d' : '#2ecc71'
                             }}
                           ></div>
                         </div>
@@ -641,12 +614,37 @@ function App() {
                 </ul>
               </div>
 
-              <div style={{ textAlign: 'center', fontSize: '0.7rem', color: '#444' }}>
-                Réception cloud: {new Date(lastFetched).toLocaleTimeString()}
+            </div>
+
+            <div className="live-scene-card">
+              <div className="live-image-wrapper">
+                {liveData.currentScene.isGenerating && (
+                  <div className="generating-overlay">
+                    <div className="spinner"></div>
+                    <p style={{ fontFamily: 'Cinzel', letterSpacing: '2px', fontSize: '0.8rem' }}>Visualisation en cours...</p>
+                  </div>
+                )}
+                <img 
+                  src={liveData.currentScene.image} 
+                  alt="Scène actuelle" 
+                  key={liveData.currentScene.image}
+                  style={{ opacity: liveData.currentScene.isGenerating ? 0.3 : 1 }}
+                  onError={(e) => { e.currentTarget.src = 'https://via.placeholder.com/800x450/1a1a1f/d4af37?text=Scène+D%26D+en+direct' }}
+                />
               </div>
+              <div className="live-caption-box">
+                <p className="live-description">
+                  {liveData.currentScene.description}
+                </p>
+              </div>
+            </div>
+
+            <div className="live-chat-column">
+              <CommonChat />
             </div>
           </div>
         </div>
+
       </div>
     )
   }
