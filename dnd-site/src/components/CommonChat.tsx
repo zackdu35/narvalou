@@ -3,7 +3,12 @@ import React, { useState } from 'react'
 export const CommonChat = ({ messages, data, curT, sendMessage, supabase }: { messages: any[], data: any, curT: any, sendMessage: (text: string, receiverId: string) => void, supabase: any }) => {
   const [typedMessage, setTypedMessage] = useState('')
 
-  const commonMessages = messages.filter((m: any) => m.receiver_id === 'global' && !m.content?.includes('[REFRESH') && !m.content?.includes('[SYNC_SCENE'))
+  const commonMessages = messages.filter((m: any) => {
+    const content = (m.content || "").toUpperCase();
+    return m.receiver_id === 'global' && 
+           !content.includes('[REFRESH') && 
+           !content.includes('[SYNC_SCENE');
+  })
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault()

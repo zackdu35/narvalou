@@ -332,7 +332,8 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
       const { data: msgs } = await supabase!.from('messages')
         .select('*')
         .eq('campaign_id', id)
-        .not('content', 'like', '[REFRESH%') // Hide ALL refresh signals
+        .not('content', 'like', '[REFRESH%') // Hide old refresh signals
+        .not('content', 'like', '[SYNC_SCENE%') // Hide new sync signals
         .order('created_at', { ascending: true })
       if (msgs) setMessages(msgs)
     }
@@ -349,42 +350,48 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
         
         // --- REAL-TIME REFRESH SIGNAL (Bridge v3) ---
         const content = newMsg.content || "";
-        if (content.includes('[SYNC_SCENE:')) {
-          console.log("🔴 [SYSTEM] SYNC SIGNAL RECEIVED! Parsing payload...");
-          try {
-            const jsonPart = content.split('[SYNC_SCENE:')[1].split(']')[0];
-            const data = JSON.parse(jsonPart);
-            console.log("📍 Applying Realtime Update:", data.location);
-            setData((prev: any) => ({
-              ...prev,
-              currentLocation: data.location || prev.currentLocation,
-              currentTimeOfDay: data.time || prev.currentTimeOfDay,
-              currentScene: {
-                ...prev.currentScene,
-                description: data.description || prev.currentScene.description,
-                image: data.image || prev.currentScene.image,
-                isGenerating: false
-              }
-            }));
-          } catch (e) {
-             console.error("❌ Failed to parse sync signal:", e);
-             triggerRefetch();
+        console.log("📩 Message received for signal check:", content.substring(0, 50));
+
+        if (content.toUpperCase().includes('[SYNC_SCENE:') || content.toUpperCase().includes('[REFRESH')) {
+          console.log("🔴 [SYSTEM] SYNC SIGNAL RECEIVED! Processing...");
+          
+          if (content.toUpperCase().includes('[SYNC_SCENE:')) {
+            try {
+              // Extract payload from within [SYNC_SCENE: ... ]
+              // Using case-insensitive search for the tag
+              const tag = "[SYNC_SCENE:";
+              const startIndex = content.toUpperCase().indexOf(tag) + tag.length;
+              const endIndex = content.lastIndexOf(']');
+              const jsonPart = content.substring(startIndex, endIndex);
+              const syncData = JSON.parse(jsonPart);
+              console.log("📍 Applying Realtime Update:", syncData.location);
+              setData((prev: any) => ({
+                ...prev,
+                currentLocation: syncData.location || prev.currentLocation,
+                currentTimeOfDay: syncData.time || prev.currentTimeOfDay,
+                currentScene: {
+                  ...prev.currentScene,
+                  description: syncData.description || prev.currentScene.description,
+                  image: syncData.image || prev.currentScene.image,
+                  isGenerating: false
+                }
+              }));
+            } catch (e) {
+               console.error("❌ Failed to parse sync signal:", e);
+               triggerRefetch();
+            }
+          } else {
+            console.log("🔄 [SYSTEM] Refresh signal detected.");
+            triggerRefetch();
           }
           return; // Skip adding to chat UI
-        }
-
-        // Catch legacy signals too
-        if (content.includes('[REFRESH]')) {
-           console.log("🔄 [SYSTEM] Legacy refresh signal detected.");
-           triggerRefetch();
-           return;
         }
 
         console.log("💬 New message received:", newMsg.sender_id);
         setMessages(prev => [...prev, newMsg])
         
         // --- DM SPEECH FALLBACK ---
-        if (newMsg.sender_id === 'DM' || newMsg.sender_id === 'Hagrid' || newMsg.sender_id === 'Le Maître du Donjon') {
+        if (newMsg.sender_id === 'DM' || newMsg.sender_id === 'SYSTEM' || newMsg.sender_id === 'Hagrid' || newMsg.sender_id === 'Le Maître du Donjon') {
           console.log("🧙‍♂️ DM spoke, preparing fallback sync...");
           setTimeout(triggerRefetch, 3000); 
         }

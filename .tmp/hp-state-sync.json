@@ -1,8 +1,8 @@
 {
-  "currentLocation": "Poudlard - Table des Serdaigle",
+  "currentLocation": "Poudlard - Grande Salle (Discours)",
   "currentTimeOfDay": "Nuit",
   "currentScene": {
-    "description": "Le festin commence ! Sous le ciel étoilé de la Grande Salle, vous discutez avec vos camarades de Serdaigle des cours à venir. L'air est rempli de rires et de la bonne odeur des rôtis et des tourtes.",
+    "description": "Dumbledore se lève et prononce quelques mots mystérieux : 'Saugrenu ! Gras-double ! Bizarre ! Et Pinçon !'. Aussitôt, les tables se remplissent d'un festin encore plus somptueux. Les élèves exultent.",
     "isGenerating": false,
     "image": ""
   },
@@ -19,7 +19,7 @@
   "activeQuests": [
     {
       "title": "Le Festin de Bienvenue",
-      "description": "Faites connaissance avec vos camarades de maison.",
+      "description": "Écoutez le discours de Dumbledore.",
       "priority": "normal"
     }
   ]
