@@ -1,0 +1,17 @@
+{
+  "currentLocation": "Sur la paroi du Mur Rose",
+  "currentTimeOfDay": "En plein cauchemar",
+  "currentScene": {
+    "description": "Bigorneau a repris conscience in extremis (20 Naturel !) et s'est accroché à la paroi du mur, à quelques mètres du sol. Moultar et diAz sont encore sous le choc de l'apparition du Titan Colossal. Les cloches de Trost commencent à sonner l'alerte générale !",
+    "image": "https://uohvjrnrfcjnbtwrslqo.supabase.co/storage/v1/object/public/campaign-assets/scenes/4/bigorneau_blast_back_1775594578452.png"
+  },
+  "partyStatus": [
+    { "id": "moultar", "hp": 14 },
+    { "id": "bigorneau", "hp": 1 },
+    { "id": "diaz", "hp": 12 }
+  ],
+  "activeQuests": [
+    { "title": "Sauvetage de Bigorneau", "description": "Réussi in extremis ! Remonter sur le mur ou se mettre à l'abri.", "priority": "normal" },
+    { "title": "Alerte Générale", "description": "La porte est tombée ! Il faut évacuer les civils et rejoindre les lignes de défense.", "priority": "high" }
+  ]
+}

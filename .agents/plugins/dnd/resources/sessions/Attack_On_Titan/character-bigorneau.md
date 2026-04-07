@@ -12,7 +12,7 @@ Jeune roux avec des petites bouclettes. Il est très vif et c'est lui qui met la
 ## État de Santé
 **PV Actuels:** 10 / 10
 **PV Max:** 10
-**Statut:** Pleine forme
+**Statut:** Reposé (Long Rest)
 
 ## Équipement
 - Uniforme de recrue standard (légèrement trop grand pour lui)

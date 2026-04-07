@@ -4,10 +4,13 @@
 **Système :** D&D 5e (Adapté pour l'univers)
 
 ## Statut du groupe
-*(En attente de la création des personnages)*
+- @Bigorneau (Inconscient - 0 PV)
+- @Moultar (En forme - 14 PV)
+- @diAz (En forme - 12 PV)
 
 ## Localisation actuelle
-District de Trost, près du Mur Rose (ou à définir selon vos préférences).
+District de Trost, chute libre depuis le Mur Rose.
 
 ## Quêtes Actives
-- Recrutement (Bataillon d'exploration, Garnison ou Brigades spéciales à définir).
+- **Sauvetage de Bigorneau** (Intercepter sa chute)
+- **Alerte Générale** (Informer la garnison de l'attaque du Colossal)

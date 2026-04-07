@@ -1,0 +1,19 @@
+{
+  "currentLocation": "Chute du Mur Rose",
+  "currentTimeOfDay": "Chaos total",
+  "currentScene": {
+    "description": "Bigorneau est foudroyé par la vapeur brûlante ! Son corps bascule en arrière et il entame une chute vertigineuse vers les rues de Trost."
+  },
+  "partyStatus": [
+    { "id": "diaz", "hp": 12, "status": "En ascension !" },
+    { "id": "bigorneau", "hp": 1, "status": "EN CHUTE LIBRE / GRILLES" },
+    { "id": "moultar", "hp": 14, "status": "Arrive sur le mur !" }
+  ],
+  "activeQuests": [
+    {
+      "title": "Sauver Bigorneau",
+      "description": "Attrapez Bigorneau avant qu'il ne s'écrase ou ne meure de ses brûlures.",
+      "priority": "high"
+    }
+  ]
+}
