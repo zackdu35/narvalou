@@ -1,8 +1,8 @@
 {
-  "currentLocation": "Pré-au-Lard - Rue Principale",
-  "currentTimeOfDay": "Midi",
+  "currentLocation": "Quai de Pré-au-Lard",
+  "currentTimeOfDay": "Nuit",
   "currentScene": {
-    "description": "Vous arrivez enfin à Pré-au-Lard ! Les toits enneigés et les vitrines décorées des boutiques vous accueillent. L'odeur sucrée de Honeydukes se mélange à celle du feu de bois des Trois Balais.",
+    "description": "Le Poudlard Express s'immobilise dans un sifflement de vapeur. Vous descendez sur le quai enneigé où Hagrid, une lanterne à la main, appelle les nouveaux élèves. Le château de Poudlard surplombe la scène, ses fenêtres brillant comme des étoiles au loin.",
     "isGenerating": false,
     "image": ""
   },
@@ -12,15 +12,15 @@
       "name": "Zac",
       "hp": 10,
       "maxHp": 10,
-      "status": "Ravi",
+      "status": "Prêt",
       "house": "Ravenclaw"
     }
   ],
   "activeQuests": [
     {
-      "title": "Une Bière au Beurre ?",
-      "description": "Explorez les boutiques de Pré-au-Lard et rendez-vous aux Trois Balais.",
-      "priority": "normal"
+      "title": "L'Arrivée à Poudlard",
+      "description": "Suivez Hagrid jusqu'aux barques pour la traversée du Lac Noir.",
+      "priority": "main"
     }
   ]
 }
