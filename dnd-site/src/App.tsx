@@ -9,6 +9,7 @@ import { CharacterSheet } from './components/CharacterSheet'
 import { Grimoire } from './components/Grimoire'
 import { MapModal } from './components/MapModal'
 import { CommonChat } from './components/CommonChat'
+import PasswordGuard from './components/PasswordGuard'
 
 // --- SHARED UTILS ---
 const getMod = (score: number) => {
@@ -395,6 +396,16 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
     }])
   }
 
+  const sendDmMessage = async (text: string, receiverId: string) => {
+    if (!supabase) return
+    await supabase.from('messages').insert([{ 
+      sender_id: 'DM', 
+      receiver_id: receiverId, 
+      content: text.trim(),
+      campaign_id: id
+    }])
+  }
+
   if (isLoading) return (
     <div className="campaign-selection-overlay" style={{ flexDirection: 'column' }}>
       <div className="spinner"></div>
@@ -490,7 +501,7 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
               </div>
               <div className="live-caption-box"><p className="live-description">{data.currentScene.description}</p></div>
             </div>
-            <div className="live-chat-column"><CommonChat messages={messages} data={data} curT={curT} sendMessage={sendMessage} supabase={supabase} /></div>
+            <div className="live-chat-column"><CommonChat messages={messages} data={data} curT={curT} sendMessage={sendMessage} sendDmMessage={sendDmMessage} supabase={supabase} campaignId={id || ''} currentRole={currentRole} /></div>
           </div>
         </div>
       </div>
@@ -631,13 +642,15 @@ function App() {
   const [language, setLanguage] = useState<'FR' | 'EN' | 'IT'>('FR')
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<CampaignSelector />} />
-        <Route path="/campaign/:id" element={<CampaignView language={language} setLanguage={setLanguage} mode="landing" />} />
-        <Route path="/campaign/:id/live" element={<CampaignView language={language} setLanguage={setLanguage} mode="live" />} />
-      </Routes>
-    </BrowserRouter>
+    <PasswordGuard>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<CampaignSelector />} />
+          <Route path="/campaign/:id" element={<CampaignView language={language} setLanguage={setLanguage} mode="landing" />} />
+          <Route path="/campaign/:id/live" element={<CampaignView language={language} setLanguage={setLanguage} mode="live" />} />
+        </Routes>
+      </BrowserRouter>
+    </PasswordGuard>
   )
 }
 
