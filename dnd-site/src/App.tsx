@@ -101,7 +101,7 @@ const CampaignSelector = () => {
       current_location: "Début de l'aventure",
       current_time_of_day: "Aube",
       scene_description: `Bienvenue dans votre nouvelle aventure dans l'univers ${newCampaignUniverse} !`,
-      scene_image: "https://images.unsplash.com/photo-1551269901-5c5e14c25df7?auto=format&fit=crop&q=80&w=800",
+      scene_image: "/assets/ui/scene_placeholder.png",
       is_generating: false
     }]).select()
 
@@ -207,6 +207,7 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
   const [isMapVisible, setIsMapVisible] = useState(false)
   const [selectedSession, setSelectedSession] = useState<any>(null)
   const [currentStep, setCurrentStep] = useState(0)
+  const [optimisticImage, setOptimisticImage] = useState<string | null>(null)
 
   const curT = translations[language]
 
@@ -335,14 +336,18 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
           
           if (content.toUpperCase().includes('[SYNC_SCENE:')) {
             try {
-              // Extract payload from within [SYNC_SCENE: ... ]
-              // Using case-insensitive search for the tag
               const tag = "[SYNC_SCENE:";
               const startIndex = content.toUpperCase().indexOf(tag) + tag.length;
               const endIndex = content.lastIndexOf(']');
               const jsonPart = content.substring(startIndex, endIndex);
               const syncData = JSON.parse(jsonPart);
               console.log("📍 Applying Realtime Update:", syncData.location);
+              
+              // On nettoie l'image optimiste si on reçoit l'URL finale
+              if (syncData.image && syncData.image.startsWith('http')) {
+                setOptimisticImage(null);
+              }
+
               setData((prev: any) => ({
                 ...prev,
                 currentLocation: syncData.location || prev.currentLocation,
@@ -355,8 +360,7 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
                 }
               }));
               
-              // NEW: Trigger a background full refetch to get updated quests and HP
-              console.log("🔄 Triggering background full refetch...");
+              // Trigger a background full refetch
               triggerRefetch();
             } catch (e) {
                console.error("❌ Failed to parse sync signal:", e);
@@ -496,12 +500,52 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
             </div>
             <div className="live-scene-card">
               <div className="live-image-wrapper">
-                {data.currentScene.isGenerating && <div className="generating-overlay"><div className="spinner"></div><p>{curT.visualizing}</p></div>}
-                <img src={data.currentScene.image} alt="Scène" style={{ opacity: data.currentScene.isGenerating ? 0.3 : 1 }} onError={(e) => { e.currentTarget.src = 'https://images.unsplash.com/photo-1516035054744-d474c5209db5?auto=format&fit=crop&q=80&w=800' }} />
+                {data.currentScene.isGenerating && (
+                  <div className="generating-overlay">
+                    <div className="spinner"></div>
+                    <p>{curT.visualizing || 'Visualisation de la scène...'}</p>
+                  </div>
+                )}
+                <img 
+                  src={optimisticImage || data.currentScene.image} 
+                  alt="Scène" 
+                  className="scene-main-img"
+                  style={{ opacity: data.currentScene.isGenerating ? 0.3 : 1 }} 
+                  onError={(e) => { 
+                    console.log("Image load error, using placeholder");
+                    e.currentTarget.src = '/assets/ui/scene_placeholder.png' 
+                  }} 
+                />
               </div>
-              <div className="live-caption-box"><p className="live-description">{data.currentScene.description}</p></div>
+              <div className="live-caption-box">
+                <div className="scene-header-badge">SCÈNE ACTUELLE</div>
+                <p className="live-description">{data.currentScene.description}</p>
+              </div>
             </div>
-            <div className="live-chat-column"><CommonChat messages={messages} data={data} curT={curT} sendMessage={sendMessage} sendDmMessage={sendDmMessage} supabase={supabase} campaignId={id || ''} currentRole={currentRole} /></div>
+            <div className="live-chat-column">
+              <CommonChat 
+                messages={messages} 
+                data={data} 
+                curT={curT} 
+                sendMessage={sendMessage} 
+                sendDmMessage={sendDmMessage} 
+                supabase={supabase} 
+                campaignId={id || ''} 
+                currentRole={currentRole}
+                onSceneUpdate={(sceneData: any) => {
+                  if (sceneData.image && sceneData.image.startsWith('data:')) {
+                    setOptimisticImage(sceneData.image);
+                  }
+                  setData((prev: any) => ({
+                    ...prev,
+                    currentScene: {
+                      ...prev.currentScene,
+                      ...sceneData
+                    }
+                  }))
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>

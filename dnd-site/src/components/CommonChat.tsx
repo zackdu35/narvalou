@@ -16,14 +16,14 @@ interface CommonChatProps {
   supabase: any
   campaignId: string
   currentRole: string | null
+  onSceneUpdate?: (sceneData: any) => void
 }
 
-export const CommonChat = ({ messages, data, curT, sendMessage, sendDmMessage, supabase, campaignId, currentRole }: CommonChatProps) => {
+export const CommonChat = ({ messages, data, curT, sendMessage, sendDmMessage, supabase, campaignId, currentRole, onSceneUpdate }: CommonChatProps) => {
   const [typedMessage, setTypedMessage] = useState('')
   const [isResolving, setIsResolving] = useState(false)
   const [isDmThinking, setIsDmThinking] = useState(false)
   const [pendingActions, setPendingActions] = useState<TurnAction[]>([])
-  const [generatedImage, setGeneratedImage] = useState<string | null>(null)
   const [imageGenEnabled, setImageGenEnabled] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
@@ -139,64 +139,84 @@ export const CommonChat = ({ messages, data, curT, sendMessage, sendDmMessage, s
     }
 
     setIsResolving(true)
-    setGeneratedImage(null)
-
-    // Poster un message système de résolution
-    sendDmMessage('⚔️ --- RÉSOLUTION DU TOUR --- ⚔️', 'global')
-
+    
     const context = buildContext()
     const actionsThisTurn = [...pendingActions]
     setPendingActions([])
 
     try {
+      // On récupère d'abord le résultat (narration + image éventuelle)
       const result = await resolveTurnWithImage(actionsThisTurn, context, imageGenEnabled)
-
-      // Poster la narration du DM
+      
+      // Poster la narration du DM quoi qu'il arrive (même erreur)
       if (result.narration) {
         sendDmMessage(result.narration, 'global')
       }
 
-      // Si une image a été générée, la stocker et la poster
-      if (result.imageBase64 && result.imageMimeType) {
-        const imageDataUrl = `data:${result.imageMimeType};base64,${result.imageBase64}`
-        setGeneratedImage(imageDataUrl)
+      // N'AGIR SUR LA SCENE QUE SI CE N'EST PAS UNE ERREUR
+      if (!result.isError) {
+        // Mettre à jour la légende
+        onSceneUpdate?.({ description: result.narration })
 
-        // Upload l'image à Supabase Storage pour la persister
-        try {
-          const blob = await base64ToBlob(result.imageBase64, result.imageMimeType)
-          const fileName = `scenes/${campaignId}/turn_${Date.now()}.png`
-          const { data: uploadData } = await supabase.storage
-            .from('campaign-assets')
-            .upload(fileName, blob, { contentType: result.imageMimeType })
+        // Si une image a été générée
+        if (result.imageBase64 && result.imageMimeType) {
+          const imageDataUrl = `data:${result.imageMimeType};base64,${result.imageBase64}`
+          
+          // Mettre à jour la scène immédiatement avec le base64 (optimiste)
+          onSceneUpdate?.({ image: imageDataUrl, isGenerating: false })
 
-          if (uploadData?.path) {
-            const { data: urlData } = supabase.storage
+          // Upload l'image à Supabase Storage pour la persister
+          try {
+            const blob = await base64ToBlob(result.imageBase64, result.imageMimeType)
+            const fileName = `scenes/${campaignId}/turn_${Date.now()}.png`
+            const { data: uploadData } = await supabase.storage
               .from('campaign-assets')
-              .getPublicUrl(uploadData.path)
-            
-            if (urlData?.publicUrl) {
-              // Mettre à jour la scène avec la nouvelle image
-              await supabase.from('campaigns').update({
-                scene_image: urlData.publicUrl,
-                scene_description: result.narration.substring(0, 500),
-              }).eq('id', campaignId)
+              .upload(fileName, blob, { contentType: result.imageMimeType })
 
-              // Envoyer un signal de sync
-              sendDmMessage(`[SYNC_SCENE:${JSON.stringify({
-                image: urlData.publicUrl,
-                description: result.narration.substring(0, 500),
-                location: context.currentLocation,
-                time: context.currentTimeOfDay
-              })}]`, 'global')
+            if (uploadData?.path) {
+              const { data: urlData } = supabase.storage
+                .from('campaign-assets')
+                .getPublicUrl(uploadData.path)
+              
+              if (urlData?.publicUrl) {
+                // Mettre à jour la scène avec la nouvelle image permanente
+                await supabase.from('campaigns').update({
+                  scene_image: urlData.publicUrl,
+                  scene_description: result.narration.substring(0, 500),
+                  is_generating: false
+                }).eq('id', campaignId)
+
+                // Envoyer un signal de sync
+                sendDmMessage(`[SYNC_SCENE:${JSON.stringify({
+                  image: urlData.publicUrl,
+                  description: result.narration.substring(0, 500),
+                  location: context.currentLocation,
+                  time: context.currentTimeOfDay
+                })}]`, 'global')
+              }
             }
+          } catch (uploadError) {
+            console.warn('Image upload skipped:', uploadError)
+            await supabase.from('campaigns').update({ is_generating: false }).eq('id', campaignId)
           }
-        } catch (uploadError) {
-          console.warn('Image upload skipped:', uploadError)
+        } else {
+          // Succès narration mais pas d'image (désactivé ou échec)
+          await supabase.from('campaigns').update({ is_generating: false }).eq('id', campaignId)
+          onSceneUpdate?.({ 
+            image: '/assets/ui/scene_placeholder.png', 
+            isGenerating: false 
+          })
         }
+      } else {
+        // C'était une erreur : on arrête le chargement en BDD
+        await supabase.from('campaigns').update({ is_generating: false }).eq('id', campaignId)
+        onSceneUpdate?.({ isGenerating: false })
       }
     } catch (error) {
       console.error('Turn resolution error:', error)
       sendDmMessage('💀 Erreur lors de la résolution du tour...', 'global')
+      await supabase.from('campaigns').update({ is_generating: false }).eq('id', campaignId)
+      onSceneUpdate?.({ isGenerating: false })
     }
 
     setIsResolving(false)
@@ -270,13 +290,6 @@ export const CommonChat = ({ messages, data, curT, sendMessage, sendDmMessage, s
           )
         })}
         
-        {/* Image générée */}
-        {generatedImage && (
-          <div className="common-msg dm-msg dm-image-msg">
-            <img src={generatedImage} alt="Scène générée par l'IA" className="generated-scene-img" />
-          </div>
-        )}
-
         {/* Indicateur de résolution en cours */}
         {isResolving && (
           <div className="common-msg resolving-msg">

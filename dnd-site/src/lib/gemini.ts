@@ -50,6 +50,7 @@ export interface DmResponse {
   narration: string
   imageBase64?: string  // base64 PNG image data
   imageMimeType?: string
+  isError?: boolean
 }
 
 // ============================================================
@@ -198,23 +199,44 @@ ${actionsText}
 
 Résous ce tour. Décris ce qui se passe pour TOUS les joueurs de manière cohérente et cinématique. Si des jets de dés sont nécessaires, utilise les dés pré-lancés ci-dessus.`
 
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: fullPrompt,
-      config: {
-        temperature: 0.9,
-        topP: 0.95,
-        maxOutputTokens: 2048,
-      }
-    })
+  let attempts = 0
+  const maxAttempts = 3
+  const baseDelay = 1000
+  const models = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.5-pro']
 
-    const text = response.text || ''
-    return { narration: text.trim() }
-  } catch (error: any) {
-    console.error('❌ Gemini API error (resolveTurn):', error)
-    return { narration: getErrorMessage(error) }
+  while (attempts < maxAttempts) {
+    const currentModel = models[attempts % models.length]
+    try {
+      const response = await ai.models.generateContent({
+        model: currentModel,
+        contents: fullPrompt,
+        config: {
+          temperature: 0.9,
+          topP: 0.95,
+          maxOutputTokens: 2048,
+        }
+      })
+
+      const text = response.text || ''
+      return { narration: text.trim(), isError: false }
+    } catch (error: any) {
+      attempts++
+      const status = error?.status || error?.code
+      const msg = (error?.message || '').toLowerCase()
+      
+      // Retry on 503 (Unavailable), 429 (Too many requests), or other temporary issues
+      if (attempts < maxAttempts && (status === 503 || status === 429 || msg.includes('503') || msg.includes('429') || msg.includes('demand'))) {
+        const delay = baseDelay * Math.pow(2, attempts - 1)
+        console.warn(`⏳ Gemini (${currentModel}) busy (attempt ${attempts}/${maxAttempts}). Retrying with next model in ${delay}ms...`)
+        await new Promise(resolve => setTimeout(resolve, delay))
+        continue
+      }
+
+      console.error('❌ Gemini API error (resolveTurn):', error)
+      return { narration: getErrorMessage(error), isError: true }
+    }
   }
+  return { narration: "💀 Le Maître du Donjon est épuisé... (Erreur persistante)", isError: true }
 }
 
 // ============================================================
@@ -241,21 +263,38 @@ Question du joueur : "${question}"
 
 Ta réponse (concise, 1-2 paragraphes max) :`
 
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: fullPrompt,
-      config: {
-        temperature: 0.7,
-        maxOutputTokens: 512,
-      }
-    })
+  let attempts = 0
+  const maxAttempts = 2
+  const models = ['gemini-2.5-flash-lite', 'gemini-2.5-flash']
 
-    return (response.text || '').trim()
-  } catch (error: any) {
-    console.error('❌ Gemini API error (/dm):', error)
-    return getErrorMessage(error)
+  while (attempts < maxAttempts) {
+    const currentModel = models[attempts % models.length]
+    try {
+      const response = await ai.models.generateContent({
+        model: currentModel,
+        contents: fullPrompt,
+        config: {
+          temperature: 0.7,
+          maxOutputTokens: 512,
+        }
+      })
+
+      return (response.text || '').trim()
+    } catch (error: any) {
+      attempts++
+      const status = error?.status || error?.code
+      const msg = (error?.message || '').toLowerCase()
+      
+      if (attempts < maxAttempts && (status === 503 || status === 429 || msg.includes('503') || msg.includes('429') || msg.includes('demand'))) {
+        await new Promise(resolve => setTimeout(resolve, 500))
+        continue
+      }
+
+      console.error('❌ Gemini API error (/dm):', error)
+      return getErrorMessage(error)
+    }
   }
+  return "💀 Le MJ est occupé à consulter ses parchemins... (Erreur persistante)"
 }
 
 // ============================================================
@@ -283,33 +322,49 @@ Characters present: ${charDescriptions}
 
 Style: Dark fantasy anime illustration, dramatic lighting, high detail, no text or UI elements. The image should feel like a key frame from an anime or a high-quality RPG illustration book.`
 
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
-      contents: imagePrompt,
-      config: {
-        responseModalities: [Modality.TEXT, Modality.IMAGE],
-      }
-    })
+  let attempts = 0
+  const maxAttempts = 2
+  const models = ['gemini-2.5-flash-lite', 'gemini-2.5-flash']
 
-    // Extract image from response
-    const candidates = response.candidates
-    if (candidates && candidates[0]?.content?.parts) {
-      for (const part of candidates[0].content.parts) {
-        if (part.inlineData) {
-          return {
-            base64: part.inlineData.data as string,
-            mimeType: (part.inlineData.mimeType as string) || 'image/png'
+  while (attempts < maxAttempts) {
+    const currentModel = models[attempts % models.length]
+    try {
+      const response = await ai.models.generateContent({
+        model: currentModel,
+        contents: imagePrompt,
+        config: {
+          responseModalities: [Modality.TEXT, Modality.IMAGE],
+        }
+      })
+
+      // Extract image from response
+      const candidates = response.candidates
+      if (candidates && candidates[0]?.content?.parts) {
+        for (const part of candidates[0].content.parts) {
+          if (part.inlineData) {
+            return {
+              base64: part.inlineData.data as string,
+              mimeType: (part.inlineData.mimeType as string) || 'image/png'
+            }
           }
         }
       }
+      return null
+    } catch (error: any) {
+      attempts++
+      const status = error?.status || error?.code
+      const msg = (error?.message || '').toLowerCase()
+
+      if (attempts < maxAttempts && (status === 503 || status === 429 || msg.includes('503') || msg.includes('429') || msg.includes('demand'))) {
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        continue
+      }
+
+      console.error('❌ Image generation error:', error)
+      return null
     }
-    return null
-  } catch (error: any) {
-    console.error('❌ Image generation error:', error)
-    // Image gen might not be available on free tier - that's OK
-    return null
   }
+  return null
 }
 
 // ============================================================
@@ -324,8 +379,8 @@ export async function resolveTurnWithImage(
   // First, get the narration
   const result = await resolveTurn(actions, context)
 
-  // Then try to generate an image (non-blocking, can fail silently)
-  if (generateImage && result.narration && !result.narration.startsWith('⚠️')) {
+  // Try to generate an image only if narration was successful
+  if (generateImage && result.narration && !result.isError) {
     try {
       const image = await generateSceneImage(result.narration, context)
       if (image) {
@@ -345,18 +400,43 @@ export async function resolveTurnWithImage(
 // ============================================================
 
 function getErrorMessage(error: any): string {
-  const msg = error?.message || ''
-  if (msg.includes('429') || error?.status === 429 || msg.includes('RESOURCE_EXHAUSTED')) {
-    // Try to extract retry delay
-    const retryMatch = msg.match(/retry in (\d+)/i)
-    const delay = retryMatch ? retryMatch[1] : '30-60'
-    return `⏳ Quota API temporairement atteint. Réessayez dans ~${delay} secondes. Le free tier a des limites de requêtes par minute.`
+  let msg = error?.message || ''
+  
+  // Try to parse JSON if the error message is a stringified JSON
+  try {
+    if (msg.includes('{')) {
+      const start = msg.indexOf('{')
+      const end = msg.lastIndexOf('}')
+      if (start !== -1 && end !== -1) {
+        const potentialJson = msg.substring(start, end + 1)
+        const parsed = JSON.parse(potentialJson)
+        if (parsed.error?.message) msg = parsed.error.message
+        else if (parsed.message) msg = parsed.message
+      }
+    }
+  } catch (e) {
+    // Not JSON, continue with original message
   }
-  if (msg.includes('API_KEY') || msg.includes('401')) {
+
+  const status = error?.status || error?.code || ''
+  const isBusy = msg.includes('429') || status === 429 || msg.includes('RESOURCE_EXHAUSTED') ||
+                 msg.includes('503') || status === 503 || msg.includes('UNAVAILABLE') ||
+                 msg.includes('high demand')
+
+  if (isBusy) {
+    // Try to extract retry delay if present
+    const retryMatch = msg.match(/retry in (\d+)/i)
+    const delay = retryMatch ? retryMatch[1] : 'quelques'
+    return `⏳ Le Maître du Donjon est surchargé par trop de demandes simultanées. Réessayez dans ${delay === 'quelques' ? 'quelques' : delay + ' '} secondes. (Erreur Flash: ${status})`
+  }
+
+  if (msg.includes('API_KEY') || msg.includes('401') || status === 401) {
     return "🔑 Clé API Gemini invalide. Vérifiez votre fichier .env."
   }
-  if (msg.includes('not found') || msg.includes('404') || msg.includes('not_found')) {
-    return "🔧 Modèle Gemini non disponible. Vérifiez la version du modèle utilisé."
+
+  if (msg.includes('not found') || msg.includes('404') || status === 404) {
+    return "🔧 Modèle Gemini non trouvé ou non disponible. La version demandée est peut-être obsolète ou incorrecte."
   }
+
   return "💀 Le Maître du Donjon est momentanément dans les limbes... (Erreur: " + msg.substring(0, 150) + ")"
 }
