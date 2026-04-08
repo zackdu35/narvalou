@@ -1,4 +1,4 @@
-import { GoogleGenAI, Modality } from '@google/genai'
+import { GoogleGenAI } from '@google/genai'
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY
 

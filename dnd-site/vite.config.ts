@@ -47,7 +47,14 @@ export default defineConfig(({ mode }) => {
                 const adminClient = createClient(env.VITE_SUPABASE_URL || '', env.SUPABASE_SERVICE_ROLE_KEY || '')
                 
                 let result;
-                if (method === 'INSERT') {
+                if (method === 'STORAGE_UPLOAD') {
+                  const { bucket, path, base64, contentType } = data || {}
+                  const buffer = Buffer.from(base64, 'base64')
+                  result = await adminClient.storage.from(bucket).upload(path, buffer, { 
+                    contentType: contentType || 'image/png', 
+                    upsert: true 
+                  })
+                } else if (method === 'INSERT') {
                   result = await adminClient.from(table).insert(data).select()
                 } else if (method === 'DELETE') {
                   result = await adminClient.from(table).delete().match(match || { id })

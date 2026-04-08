@@ -616,9 +616,3 @@ export const CommonChat = ({ messages, data, curT, sendMessage, sendDmMessage, s
   )
 }
 
-// Utility: base64 → Blob
-async function base64ToBlob(base64: string, mimeType: string): Promise<Blob> {
-  const dataUrl = `data:${mimeType};base64,${base64}`
-  const res = await fetch(dataUrl)
-  return res.blob()
-}
