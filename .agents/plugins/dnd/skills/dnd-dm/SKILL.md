@@ -199,28 +199,29 @@ cd dnd-site && node scripts/dm_bridge.js
 - **Action**: Frequently check the output of this terminal using `command_status`.
 - **Note**: This bridge listens to the Supabase `messages` table in real-time.
 
+#### 🛡️ MECHANICAL COMBAT RESOLUTION (NEW)
+When the party is in combat or needs mechanical checks:
+1. **Identify the Campaign ID**: Usually 1 (Padhiver) or 3 (Potter).
+2. **Execute Resolution**: Run the master controller script. It handles everything: fetching actions, rolling dice via `roll-dice.sh`, narrating, and syncing.
+   ```bash
+   node .agents/plugins/dnd/scripts/resolve-turn-cmd.js [CAMPAIGN_ID]
+   ```
+3. **Verify**: Check the site to see the results.
+
 #### 🧙‍♂️ Responding (The "Oracle")
-Wait for the player's explicit **"répond"** signal in the main chat before taking action. Once triggered, ALWAYS follow this 3-step sequence:
+Wait for the player's explicit **"répond"** signal in the main chat before taking action.
 
-1. **ANALYZE (Pre-read)**:
-    - First, get the current state from Supabase to ensure your narration is accurate (HP, current scene, location).
-    - Use the `scripts/dm-sync.js` (or similar) to query or simply check the latest `character-*.md` and `campaign-summary.md` files if strictly following file-base, but ideally query SQL if possible.
+**If COMBAT or CHECKS are needed:** Use the `resolve-turn-cmd.js` flow above.
 
-1. **SPEAK (Text & Voice Narrator)**:
-    - Write your immersive response. You MUST use the `speak-on-site.js` CLI to post the text AND generate the vocal audio on the site.
+**If ONLY NARRATION is needed:**
+1. **SPEAK**:
       ```bash
       node .agents/plugins/dnd/scripts/speak-on-site.js --text "Your text..." --npc "Speaker Name" --voice "goblin" --campaign [ID]
       ```
-    - **Voices available**: `narrator`, `default`, `goblin`, `dwarf`, `elf`, `wizard`, `warrior`, `rogue`, `cleric`, `merchant`, `guard`, `noble`, `villain`.
-
-2. **VISUALIZE (Optional)**:
-    - **IF** the scene changed, generate a new image for the context:
+2. **VISUALIZE**:
       - `generate_image` based on the new description.
-
-3. **SYNC (State Update)**:
-    - Update character sheets/logs locally.
-    - Immediately call `.agents/plugins/dnd/scripts/dm-sync.js` with the updated JSON state and the (optional) new image path to refresh the board for ALL players.
-    - **Workflow**: Create `.tmp/state.json` -> Run `node .agents/plugins/dnd/scripts/dm-sync.js .tmp/state.json [img_path] [campaign_id]`.
+3. **SYNC**:
+      - Create `.tmp/state.json` -> Run `node .agents/plugins/dnd/scripts/dm-sync.js .tmp/state.json [img_path] [campaign_id]`.
     - **Note**: Use a local `.tmp/` directory in the workspace for temporary state files. Character Sheets**: Reflect any HP/spell changes in `.agents/plugins/dnd/resources/sessions/<campaign-name>/character-*.md`.
 - **Update Campaign Log**: Record the narrative turn in `.agents/plugins/dnd/resources/sessions/<campaign-name>/campaign-log.md`.
 - **Update Live Board**: Sync the cloud state using `.agents/plugins/dnd/scripts/updateLive.js`.

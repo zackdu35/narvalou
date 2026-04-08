@@ -61,7 +61,7 @@ roll_dice_expr() {
     local expr=$1
 
     # Extract number of dice, die size, and modifier
-    if [[ $expr =~ ^([0-9]+)?d([0-9]+)([+-][0-9]+)?$ ]]; then
+    if [[ $expr =~ ^([0-9]*)d([0-9]+)([+-][0-9]+)?$ ]]; then
         local num_dice=${BASH_REMATCH[1]:-1}
         local die_size=${BASH_REMATCH[2]}
         local modifier=${BASH_REMATCH[3]:-+0}
@@ -86,6 +86,20 @@ roll_dice_expr() {
 
         # Return results as JSON-like format
         echo "ROLLS:[${rolls[*]}]|MODIFIER:$modifier|TOTAL:$total|EXPR:$expr"
+    elif [[ $expr =~ ^([0-9]+)([+-][0-9]+)?$ ]]; then
+        # Handle constant values or simple math like "1-1" or "5"
+        local base=${BASH_REMATCH[1]}
+        local modifier=${BASH_REMATCH[2]:-+0}
+        
+        local mod_value=${modifier:1}
+        local total=0
+        if [[ ${modifier:0:1} == "+" ]]; then
+            total=$((base + mod_value))
+        else
+            total=$((base - mod_value))
+        fi
+        
+        echo "ROLLS:[$base]|MODIFIER:$modifier|TOTAL:$total|EXPR:$expr"
     else
         echo "ERROR: Invalid dice expression: $expr"
         exit 1

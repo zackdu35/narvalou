@@ -14,7 +14,7 @@ export const CharacterSheet = ({ char, onClose, getMod }: { char: any, onClose: 
               <strong style={{ color: 'var(--accent)' }}>CLASSE & NIVEAU:</strong> <span style={{ color: '#fff' }}>{char.class} {char.level}</span>
             </div>
             <div style={{ marginTop: '4px' }}>
-              <strong style={{ color: 'var(--accent)' }}>RACE:</strong> <span style={{ color: '#fff' }}>{char.race}</span>
+              <strong style={{ color: 'var(--accent)' }}>RACE & SEXE:</strong> <span style={{ color: '#fff' }}>{char.race} ({char.sex || '?'})</span>
             </div>
 
             <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
@@ -52,7 +52,7 @@ export const CharacterSheet = ({ char, onClose, getMod }: { char: any, onClose: 
 
           <div className="skills-col">
             <div className="proficiency-bonus">
-              <div style={{ width: '22px', height: '22px', border: '2px solid var(--accent)', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--accent)' }}>+2</div>
+              <div style={{ width: '22px', height: '22px', border: '2px solid var(--accent)', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--accent)' }}>+{char.proficiencyBonus || 2}</div>
               <span style={{ fontSize: '0.7rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--accent)' }}>Bonus de Maîtrise</span>
             </div>
 
@@ -72,13 +72,19 @@ export const CharacterSheet = ({ char, onClose, getMod }: { char: any, onClose: 
                 { n: 'Persuasion', a: 'cha' },
                 { n: 'Religion', a: 'int' },
                 { n: 'Survie', a: 'wis' }
-              ].map(s => (
-                <div className="skill-row" key={s.n}>
-                  <div className="bubble" style={{ borderColor: 'var(--accent)' }}></div>
-                  <div className="mod" style={{ borderBottomColor: 'var(--accent)' }}>{getMod(char.stats[s.a as keyof typeof char.stats])}</div>
-                  <span style={{ color: 'var(--text-primary)' }}>{s.n} <small style={{ opacity: 0.5, fontSize: '0.6rem' }}>({s.a.toUpperCase()})</small></span>
-                </div>
-              ))}
+              ].map(s => {
+                const isProficient = (char.skillProficiencies || []).some((p: string) => p.toLowerCase().includes(s.n.toLowerCase()))
+                const modValue = parseInt(String(getMod(char.stats[s.a as keyof typeof char.stats])))
+                const totalMod = isProficient ? modValue + (char.proficiencyBonus || 2) : modValue
+                
+                return (
+                  <div className="skill-row" key={s.n}>
+                    <div className="bubble" style={{ borderColor: 'var(--accent)', backgroundColor: isProficient ? 'var(--accent)' : 'transparent' }}></div>
+                    <div className="mod" style={{ borderBottomColor: 'var(--accent)' }}>{totalMod >= 0 ? `+${totalMod}` : totalMod}</div>
+                    <span style={{ color: 'var(--text-primary)' }}>{s.n} <small style={{ opacity: 0.5, fontSize: '0.6rem' }}>({s.a.toUpperCase()})</small></span>
+                  </div>
+                )
+              })}
             </div>
           </div>
 
@@ -86,7 +92,7 @@ export const CharacterSheet = ({ char, onClose, getMod }: { char: any, onClose: 
             <div className="combat-stats">
               <div className="combat-box">
                 <span className="label">CA</span>
-                <span className="value">{10 + parseInt(String(getMod(char.stats.dex)))}</span>
+                <span className="value">{char.ac || (10 + parseInt(String(getMod(char.stats.dex))))}</span>
               </div>
               <div className="combat-box">
                 <span className="label">Init.</span>
@@ -94,7 +100,11 @@ export const CharacterSheet = ({ char, onClose, getMod }: { char: any, onClose: 
               </div>
               <div className="combat-box">
                 <span className="label">Vitesse</span>
-                <span className="value" style={{ fontSize: '1.4rem' }}>9m</span>
+                <span className="value" style={{ fontSize: '1.4rem' }}>{char.speed || 30}ft</span>
+              </div>
+              <div className="combat-box" style={{ background: 'rgba(212, 175, 55, 0.1)' }}>
+                <span className="label">Dés de Vie</span>
+                <span className="value" style={{ fontSize: '1.2rem' }}>{char.hitDice || '1d8'}</span>
               </div>
               {char.spellSlots?.max > 0 && (
                 <div className="combat-box" style={{ border: '1px solid #4a90e2', background: 'rgba(74, 144, 226, 0.05)' }}>
@@ -124,8 +134,17 @@ export const CharacterSheet = ({ char, onClose, getMod }: { char: any, onClose: 
               <div className="text">{char.ideals}</div>
             </div>
             <div className="personality-item">
-              <span className="label">Liens</span>
-              <div className="text">{char.bonds}</div>
+              <span className="label">Histoire (Background)</span>
+              <div className="text" style={{ fontSize: '0.8rem', fontStyle: 'italic', color: 'var(--text-secondary)' }}>{char.background || 'Aucune histoire renseignée.'}</div>
+            </div>
+            <div className="personality-item">
+              <span className="label">Liens & Allié</span>
+              <div className="text">
+                {char.bonds}
+                {char.allies?.length > 0 && (
+                  <div style={{ marginTop: '5px', color: 'var(--accent)' }}>🤝 Alliés : {char.allies.join(', ')}</div>
+                )}
+              </div>
             </div>
             <div className="personality-item" style={{ flex: 1 }}>
               <span className="label">Capacités & Traits</span>
@@ -138,11 +157,29 @@ export const CharacterSheet = ({ char, onClose, getMod }: { char: any, onClose: 
           </div>
 
           <div className="inventory-col">
-            <div style={{ fontWeight: 'bold', marginBottom: '8px', textAlign: 'center', borderBottom: '1px solid var(--accent)', paddingBottom: '3px', fontSize: '0.7rem', color: 'var(--accent)' }}>INVENTAIRE ACTIF</div>
+            <div style={{ fontWeight: 'bold', marginBottom: '8px', textAlign: 'center', borderBottom: '1px solid var(--accent)', paddingBottom: '3px', fontSize: '0.7rem', color: 'var(--accent)' }}>INVENTAIRE & SORTILÈGES</div>
+            
+            {char.spells && (
+              <div className="spells-list" style={{ background: 'rgba(74, 144, 226, 0.1)', padding: '10px', borderRadius: '5px', marginBottom: '15px', border: '1px solid rgba(74, 144, 226, 0.3)' }}>
+                <div style={{ fontSize: '0.65rem', fontWeight: 'bold', color: '#4a90e2', marginBottom: '5px', textTransform: 'uppercase' }}>Livre de Sorts</div>
+                <div style={{ fontSize: '0.7rem', color: '#fff' }}>
+                  <strong>Cantrips:</strong> {char.spells.cantrips?.join(', ')}
+                </div>
+                <div style={{ fontSize: '0.7rem', color: '#fff', marginTop: '3px' }}>
+                  <strong>Niveau 1:</strong> {char.spells.level1?.join(', ')}
+                </div>
+              </div>
+            )}
+
             <div className="inventory-list" style={{ background: 'rgba(0,0,0,0.4)' }}>
               {char.inventory?.map((item: string, i: number) => (
                 <div className="inventory-item" key={i} style={{ color: 'var(--text-secondary)' }}>{item}</div>
               ))}
+            </div>
+
+            <div style={{ marginTop: '20px', padding: '10px', borderTop: '1px solid var(--accent-muted)' }}>
+              <div style={{ fontSize: '0.65rem', fontWeight: 'bold', color: 'var(--accent)', marginBottom: '5px' }}>LANGUES</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-primary)' }}>{char.languages?.join(', ') || 'Commun'}</div>
             </div>
           </div>
         </div>

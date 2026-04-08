@@ -116,21 +116,79 @@ async function main() {
   // Create Characters in Supabase
   for (const char of config.characters) {
     const charId = `${campaignId}_${char.name.toLowerCase()}`
-    
     const defaultStats = { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 }
     
+    const level = char.level || 1
+    const proficiencyBonus = Math.floor((level - 1) / 4) + 2
+    const stats = char.stats || defaultStats
+    const dexMod = Math.floor(((stats.dex || 10) - 10) / 2)
+    const strMod = Math.floor(((stats.str || 10) - 10) / 2)
+    
+    // Simple AC calculation: 10 + Dex mod
+    const ac = 10 + dexMod
+    
+    // Default weapons based on class
+    const defaultWeapons = []
+    if (char.class?.toLowerCase().includes('guerrier') || char.class?.toLowerCase().includes('fighter')) {
+      defaultWeapons.push({ name: 'Épée longue', damageDice: '1d8', damageType: 'tranchant', attackMod: 'str' })
+    } else if (char.class?.toLowerCase().includes('voleur') || char.class?.toLowerCase().includes('rogue')) {
+      defaultWeapons.push({ name: 'Dague', damageDice: '1d4', damageType: 'perçant', attackMod: 'dex' })
+    } else if (char.class?.toLowerCase().includes('sorcier') || char.class?.toLowerCase().includes('wizard')) {
+      defaultWeapons.push({ name: 'Bâton', damageDice: '1d6', damageType: 'contondant', attackMod: 'str' })
+    } else {
+      defaultWeapons.push({ name: 'Poings', damageDice: '1', damageType: 'contondant', attackMod: 'str' })
+    }
+
+    // Default values based on Valmir example
+    const hitDice = char.class?.toLowerCase().includes('wizard') ? '1d6' : 
+                   char.class?.toLowerCase().includes('fighter') ? '1d10' : 
+                   char.class?.toLowerCase().includes('rogue') ? '1d8' : '1d8'
+    
+    // Default spells for magic classes
+    let spells = null
+    if (char.class?.toLowerCase().includes('magicien') || char.class?.toLowerCase().includes('wizard')) {
+      spells = {
+        cantrips: ['Main de Mage', 'Trait de Feu', 'Prestidigitation'],
+        level1: ['Armure de Mage', 'Projectile Magique', 'Sommeil', 'Bouclier']
+      }
+    } else if (char.class?.toLowerCase().includes('clerc') || char.class?.toLowerCase().includes('cleric')) {
+      spells = {
+        cantrips: ['Flamme Sacrée', 'Assistance', 'Thaumaturgie'],
+        level1: ['Soin des Blessures', 'Bénédiction', 'Mot de Guérison']
+      }
+    }
+
+    const extendedStats = {
+      ...stats,
+      sex: char.sex || 'Masculin',
+      ac: char.ac || ac,
+      hitDice: char.hitDice || hitDice,
+      proficiencyBonus: proficiencyBonus,
+      speed: char.speed || 30,
+      background: char.background || '',
+      languages: char.languages || ['Commun'],
+      allies: char.allies || [],
+      skillProficiencies: char.skillProficiencies || []
+    }
+
     await supabase.from('characters').insert([{
       id: charId,
       campaign_id: campaignId,
       name: char.name,
       race: char.race,
       class: char.class,
-      level: char.level || 1,
+      level: level,
+      xp_current: char.xp?.current || 0,
+      xp_next: char.xp?.next || 300,
       hp_max: char.hp_max || 10,
       hp_current: char.hp_max || 10,
-      stats: char.stats || defaultStats,
+      stats: extendedStats,
+      grimoire: char.spells || spells,
       description: char.description || '',
-      inventory: char.inventory || []
+      inventory: char.inventory || [],
+      features: char.features || [],
+      ideals: char.ideals || '',
+      bonds: char.bonds || ''
     }])
     console.log(`🕵️ Personnage inséré: ${char.name}`)
   }

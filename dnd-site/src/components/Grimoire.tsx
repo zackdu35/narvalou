@@ -27,7 +27,29 @@ export const Grimoire = ({ char, onClose, curT }: { char: any, onClose: () => vo
           )}
         </div>
         <div className="grimoire-list" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {char.grimoire?.map((spell: any, i: number) => (
+          {char.spells?.cantrips && (
+            <div style={{ marginBottom: '10px' }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: 'bold', color: 'var(--accent)', textTransform: 'uppercase', marginBottom: '8px', borderBottom: '1px solid var(--accent-muted)' }}>Tours de Magie (Cantrips)</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {char.spells.cantrips.map((s: string, i: number) => (
+                  <span key={i} style={{ padding: '4px 10px', background: 'rgba(212, 175, 55, 0.1)', border: '1px solid var(--accent-muted)', borderRadius: '4px', fontSize: '0.8rem' }}>{s}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {char.spells?.level1 && (
+            <div style={{ marginBottom: '10px' }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: 'bold', color: '#4a90e2', textTransform: 'uppercase', marginBottom: '8px', borderBottom: '1px solid rgba(74, 144, 226, 0.3)' }}>Sorts de Niveau 1</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {char.spells.level1.map((s: string, i: number) => (
+                  <span key={i} style={{ padding: '4px 10px', background: 'rgba(74, 144, 226, 0.05)', border: '1px solid rgba(74, 144, 226, 0.3)', borderRadius: '4px', fontSize: '0.8rem', color: '#fff' }}>{s}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {(!char.spells || (!char.spells.cantrips && !char.spells.level1)) && char.grimoire?.map((spell: any, i: number) => (
             <div key={i} style={{ borderBottom: '1px solid var(--accent-muted)', paddingBottom: '15px' }}>
               <strong style={{ display: 'block', fontSize: '1.1rem', color: 'var(--accent)', marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '1px' }}>
                 {spell.name}

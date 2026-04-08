@@ -416,6 +416,11 @@ h1, h2, h3, h4 {
   to { opacity: 1; transform: translateX(0); }
 }
 
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 @media (max-width: 768px) {
   .session-card {
     grid-template-columns: 1fr;
@@ -1007,13 +1012,32 @@ h1, h2, h3, h4 {
 }
 
 .spinner {
-  width: 80px;
-  height: 80px;
-  border: 4px solid var(--accent-muted);
-  border-top-color: var(--accent);
+  width: 100px;
+  height: 100px;
+  border: 4px solid transparent;
+  border-top: 4px solid var(--accent);
+  border-right: 4px solid rgba(212, 175, 55, 0.3);
+  border-bottom: 4px solid rgba(212, 175, 55, 0.1);
   border-radius: 50%;
-  animation: spin 1s cubic-bezier(0.5, 0, 0.5, 1) infinite;
-  box-shadow: 0 0 30px rgba(212, 175, 55, 0.2);
+  animation: spin 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+  box-shadow: 0 0 50px rgba(212, 175, 55, 0.15), inset 0 0 20px rgba(212, 175, 55, 0.1);
+  position: relative;
+}
+
+.spinner::before {
+  content: '🎲';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 2rem;
+  filter: drop-shadow(0 0 10px var(--accent));
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(0.9); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
 }
 
 .live-caption-box {
@@ -1235,9 +1259,10 @@ input:focus {
   flex: 1;
   overflow-y: auto;
   padding: 15px;
+  padding-bottom: 80px; /* Plus d'espace pour ne pas être caché */
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   align-items: flex-start;
   text-align: left;
 }
@@ -1253,11 +1278,12 @@ input:focus {
 .common-msg {
   font-size: 0.95rem;
   line-height: 1.5;
+  color: var(--text-primary);
 }
 
 .msg-author {
   font-family: var(--font-display);
-  color: var(--accent);
+  color: var(--text-primary);
   margin-right: 8px;
   font-weight: bold;
 }
@@ -1268,7 +1294,7 @@ input:focus {
 }
 
 .dm-msg .msg-content {
-  color: #f4e4bc;
+  color: var(--text-primary);
   font-style: italic;
 }
 
@@ -1277,6 +1303,14 @@ input:focus {
   font-weight: 900 !important;
   text-shadow: 0 0 8px rgba(212, 175, 55, 0.6);
   font-style: normal !important;
+}
+
+.mention-enemy {
+  color: #ff4d4d !important;
+  font-weight: 900 !important;
+  text-shadow: 0 0 10px rgba(255, 77, 77, 0.4);
+  font-style: normal !important;
+  animation: pulsing 2s infinite;
 }
 
 .common-chat-input {
@@ -1834,6 +1868,24 @@ input:focus {
 }
 
 
+.scene-caption-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  padding: 20px 30px;
+  background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.5) 60%, transparent 100%);
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-style: italic;
+  text-align: center;
+  letter-spacing: 1px;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  animation: fadeInUp 0.8s ease-out;
+  border-bottom: 2px solid var(--accent);
+}
+
 .system-action-msg .msg-content {
   font-family: var(--font-display);
   color: var(--accent);
@@ -2142,7 +2194,164 @@ input:focus {
   75% { transform: translateX(10px); }
 }
 
+
 @keyframes float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-15px); }
+}
+
+/* Mode Toggle Button */
+.mode-toggle-btn {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--accent-muted);
+  color: var(--text-secondary);
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 1.1rem;
+}
+
+.mode-toggle-btn:hover {
+  border-color: var(--accent);
+  background: var(--accent-muted);
+  color: var(--accent);
+  transform: scale(1.1);
+}
+
+.mode-toggle-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 10px var(--accent-muted);
+  background: rgba(212, 175, 55, 0.1);
+}
+/* --- DICE RESULTS STYLING --- */
+.dice-results-box {
+  background: rgba(212, 175, 55, 0.07);
+  border: 1px dashed rgba(212, 175, 55, 0.4);
+  padding: 15px;
+  margin: 15px 0;
+  border-radius: 8px;
+  font-family: var(--font-body);
+  position: relative;
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
+  animation: fadeIn 0.4s ease-out;
+}
+
+.dice-results-box strong {
+  color: var(--accent);
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  letter-spacing: 1px;
+}
+
+.dice-results-box .dice-breakdown {
+  margin-top: 5px;
+  color: #fff;
+  font-family: monospace;
+  font-size: 1rem;
+  background: rgba(0,0,0,0.3);
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.dice-results-box .dice-item {
+  margin-bottom: 8px;
+}
+
+.dice-results-box .dice-item:last-child {
+  margin-bottom: 0;
+}
+
+/* 🎲 Dice Roll Messages - Premium Styles */
+.dice-msg {
+  background: linear-gradient(135deg, rgba(255, 170, 0, 0.08) 0%, rgba(20, 20, 25, 0.8) 100%);
+  border-left: 4px solid #ffaa00;
+  margin: 18px 0;
+  padding: 18px 24px;
+  border-radius: 4px 12px 12px 4px;
+  font-family: 'Inter', sans-serif;
+  color: #ffcc66;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.4), inset 0 0 20px rgba(255, 170, 0, 0.05);
+  backdrop-filter: blur(10px);
+  max-width: 95%;
+  animation: slideInDice 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+  position: relative;
+}
+
+@keyframes slideInDice {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.dice-msg::after {
+  content: '🎲';
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 2.5rem;
+  opacity: 0.05;
+  filter: grayscale(1);
+}
+
+.dice-msg strong {
+  color: #fff;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: inline-block;
+  margin-right: 5px;
+}
+
+.dice-msg.fate-reserve {
+  border-left: 4px solid #3a3a42;
+  background: rgba(20, 20, 25, 0.4);
+  color: #777;
+  font-size: 0.8rem;
+  padding: 12px 20px;
+  margin-top: 5px;
+  opacity: 0.6;
+}
+
+.dice-msg.fate-reserve strong {
+  color: #999;
+  font-size: 0.75rem;
+  text-shadow: none;
+}
+
+.dice-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dice-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dice-line code {
+  background: rgba(0,0,0,0.3);
+  padding: 2px 8px;
+  border-radius: 4px;
+  color: #ffaa00;
+  font-weight: bold;
+}
+
+.dice-note {
+  font-size: 0.7rem;
+  font-style: italic;
+  opacity: 0.8;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 170, 0, 0.1);
+  padding-bottom: 4px;
+  color: #ffaa00;
 }

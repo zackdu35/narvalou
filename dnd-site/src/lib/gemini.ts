@@ -2,6 +2,11 @@ import { GoogleGenAI, Modality } from '@google/genai'
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY
 
+// Helper for cleaning shell results (stripping ANSI color codes)
+function stripAnsi(text: string): string {
+  return text.replace(/\x1B\[[0-9;]*[mK]/g, '')
+}
+
 let ai: GoogleGenAI | null = null
 if (API_KEY) {
   ai = new GoogleGenAI({ apiKey: API_KEY })
@@ -13,14 +18,51 @@ export const isGeminiAvailable = () => !!ai
 // TYPES
 // ============================================================
 
+export interface Weapon {
+  name: string
+  damageDice: string
+  damageType: string
+  attackMod: 'str' | 'dex'
+  properties?: string[]
+}
+
+export interface SpellSlots {
+  level1: number
+  level2: number
+  level3: number
+}
+
+export interface SpellBook {
+  cantrips: string[]
+  level1: string[]
+  level2?: string[]
+  level3?: string[]
+}
+
 export interface CharacterContext {
   id: string
   name: string
+  sex?: string
   race: string
   class: string
   level: number
+  xp: { current: number; next: number }
   hp: { current: number; max: number }
+  hitDice: string
   stats: Record<string, number>
+  ac: number
+  proficiencyBonus: number
+  speed: number
+  state?: string
+  background?: string
+  languages?: string[]
+  allies?: string[]
+  weapons?: Weapon[]
+  spells?: SpellBook
+  spellSlots?: SpellSlots
+  conditions?: string[]
+  savingThrows?: string[]
+  skillProficiencies?: string[]
   inventory?: string[]
   features?: string[]
   description?: string
@@ -38,6 +80,7 @@ export interface CampaignContext {
   activeQuests: { title: string; description: string; priority: string }[]
   recentMessages: { sender: string; content: string }[]
   campaignLog?: string  // markdown du campaign-log
+  gameMode?: 'adventure' | 'interactive'
 }
 
 export interface TurnAction {
@@ -46,10 +89,26 @@ export interface TurnAction {
   action: string
 }
 
+export interface IntendedRoll {
+  characterName: string
+  actionType: 'attack' | 'check' | 'save' | 'damage'
+  expression: string
+  label: string
+  result?: number
+  breakdown?: string
+}
+
 export interface DmResponse {
   narration: string
-  imageBase64?: string  // base64 PNG image data
+  caption?: string
+  imageBase64?: string
   imageMimeType?: string
+  stateUpdate?: {
+    characters?: { name: string; hp: number }[]
+    quests?: { title: string; description: string; priority: string }[]
+    location?: string
+    time?: string
+  }
   isError?: boolean
 }
 
@@ -67,16 +126,32 @@ function safeJoin(val: any): string {
 
 function buildCharacterBlock(chars: CharacterContext[]): string {
   return chars.map(c => {
-    const statsStr = c.stats 
+    const statsStr = c.stats
       ? `FOR:${c.stats.str || '?'} DEX:${c.stats.dex || '?'} CON:${c.stats.con || '?'} INT:${c.stats.int || '?'} SAG:${c.stats.wis || '?'} CHA:${c.stats.cha || '?'}`
       : 'Stats inconnues'
     const invStr = c.inventory ? `Inventaire: ${safeJoin(c.inventory)}` : ''
     const featStr = c.features ? `Capacités: ${safeJoin(c.features)}` : ''
-    return `### ${c.name}
-- Race/Type: ${c.race || 'Inconnue'} | Classe: ${c.class || 'Inconnue'} | Niveau: ${c.level || 1}
-- PV: ${c.hp?.current || '?'}/${c.hp?.max || '?'}
+    const weaponsStr = c.weapons ? `Armes: ${c.weapons.map(w => `${w.name} (${w.damageDice} ${w.damageType}, mod ${w.attackMod})`).join(', ')}` : ''
+    const condStr = (c.conditions && c.conditions.length > 0) ? `Conditions: ${c.conditions.join(', ')}` : ''
+    const langStr = (c.languages && c.languages.length > 0) ? `Langues: ${c.languages.join(', ')}` : ''
+
+    let spellsStr = ''
+    if (c.spells) {
+      spellsStr = `Sorts: Cantrips(${safeJoin(c.spells.cantrips)}), Nv1(${safeJoin(c.spells.level1)})`
+    }
+
+    return `### ${c.name} (${c.sex || '?'})
+- Race: ${c.race || 'Inconnue'} | Classe: ${c.class || 'Inconnue'} | Niveau: ${c.level || 1} (XP: ${c.xp?.current || 0}/${c.xp?.next || 300})
+- PV: ${c.hp?.current || '?'}/${c.hp?.max || '?'} | Dé de Vie: ${c.hitDice || '?'} | CA: ${c.ac || 10} | Vitesse: ${c.speed || 30}ft | Bonus Maîtrise: +${c.proficiencyBonus || 2}
 - ${statsStr}
+- État: ${c.state || 'Normal'}
+- Maîtrises: ${safeJoin(c.skillProficiencies)} | Sauvegardes: ${safeJoin(c.savingThrows)}
+${langStr ? `- ${langStr}` : ''}
+${weaponsStr ? `- ${weaponsStr}` : ''}
+${spellsStr ? `- ${spellsStr}` : ''}
+${condStr ? `- ${condStr}` : ''}
 ${c.description ? `- Description: ${c.description}` : ''}
+${c.background ? `- Histoire: ${c.background}` : ''}
 ${invStr ? `- ${invStr}` : ''}
 ${featStr ? `- ${featStr}` : ''}`
   }).join('\n\n')
@@ -84,16 +159,27 @@ ${featStr ? `- ${featStr}` : ''}`
 
 function buildTurnSystemPrompt(ctx: CampaignContext): string {
   const charBlock = buildCharacterBlock(ctx.characters)
-  
-  const questList = ctx.activeQuests.map(q => 
+
+  const questList = ctx.activeQuests.map(q =>
     `- [${q.priority.toUpperCase()}] ${q.title}: ${q.description}`
   ).join('\n') || 'Aucune quête active.'
 
-  const recentChat = ctx.recentMessages.slice(-15).map(m => 
+  const recentChat = ctx.recentMessages.slice(-15).map(m =>
     `${m.sender}: ${m.content}`
   ).join('\n') || 'Début de la session.'
 
+  const playerRoster = ctx.characters.map(c => `@${c.name}`).join(', ')
+
+  const modeDesc = ctx.gameMode === 'interactive'
+    ? "MODE INTERACTIF : Tu ne lances PAS les dés pour les joueurs. Tu leur demandes de lancer le dé et tu attends leur réponse avant de conclure."
+    : "MODE AVENTURE (Par défaut) : Tu effectues TOUS les jets pour les joueurs en utilisant les dés pré-lancés. Tu narres le résultat immédiatement."
+
   return `Tu es le Maître du Donjon (DM) pour cette campagne de jeu de rôle.
+
+═══════════════════════════════════
+        MODE DE JEU
+═══════════════════════════════════
+${modeDesc}
 
 ═══════════════════════════════════
         CONTEXTE DE LA CAMPAGNE
@@ -102,6 +188,12 @@ Nom : ${ctx.campaignName}
 Univers : ${ctx.universe}
 Lieu actuel : ${ctx.currentLocation}
 Moment : ${ctx.currentTimeOfDay}
+
+═══════════════════════════════════
+        JOUEURS À TA TABLE
+═══════════════════════════════════
+${playerRoster}
+(Utilise toujours @NomDuPersonnage pour les mentionner. Interpelle-les individuellement.)
 
 ═══════════════════════════════════
         SCÈNE EN COURS
@@ -127,42 +219,178 @@ ${ctx.campaignLog ? `\n═══════════════════
 
 const DM_RULES = `
 ═══════════════════════════════════
-        TES RÈGLES DE DM
+        TES RÈGLES DE DM (STRICTES)
 ═══════════════════════════════════
-1. Tu es un DM immersif, narratif et captivant. Tu décris les scènes avec vivacité.
-2. Tu respectes les règles de l'univers de la campagne.
-3. Quand une action nécessite un jet de dé, TU lances le dé. Format : [🎲 Jet de [Compétence] pour [Personnage]: [résultat]d20 + [mod] = [total] — [Réussite/Échec] !]
-4. Tu ne contrôles JAMAIS les choix d'un personnage joueur. Tu décris les conséquences.
-5. Tu peux introduire des PNJ, événements, dangers, et rebondissements.
-6. Réponds de manière concise mais immersive.
-7. Tu parles toujours en français.
-8. N'utilise PAS de markdown lourd. Texte brut, emojis pour les dés 🎲 et l'ambiance.
-9. IMPORTANT : Quand plusieurs joueurs agissent en même temps, décris la scène de manière cohérente en intégrant TOUTES les actions simultanément, comme dans un film.`
+
+🎭 IDENTITÉ & VOCATION
+Tu es un Maître du Donjon (DM) expert, rigoureux sur les règles de D&D 5e mais talentueux dans la narration. Ton objectif est de transformer les actions mécaniques en scènes cinématiques.
+
+⚔️ PASSAGE EN MODE COMBAT
+Dès qu'un joueur attaque, profère une menace physique immédiate, ou qu'un ennemi agresse le groupe :
+1. Déclare : "⚔️ PASSAGE EN MODE COMBAT !".
+2. Lance l'initiative pour tous (Joueurs + Ennemis). Utilise 1d20 + mod DEX.
+3. Structure ton tour avec un tracker visuel :
+   ⚔️ COMBAT — Round [X]
+   [Initiative 21] @Zac (Actif)
+   [Initiative 15] @Garçon (En attente)
+   
+
+📜 RÉSOLUTION DES ACTIONS (SYSTÈME 5e)
+- JETS D'ATTAQUE : 1d20 + mod (FOR ou DEX) + Bonus Maîtrise. Compare à la CA (Classe d'Armure) cible.
+- DÉGÂTS : Utilise le dé de l'arme + mod (FOR ou DEX). Ne jamais inventer de dés aléatoires (ex: pas de 1d6 pour un coup de poing si FOR est 10).
+- ACTIONS PAR TOUR : Chaque participant a : 1 Action + 1 Action Bonus + 1 Mouvement + 1 Réaction.
+- ENNEMIS : Ils ne sont pas des sacs de frappe. Ils DOIVENT agir, attaquer, se déplacer ou utiliser des capacités tactiques. Identifie-les toujours avec un @ (ex: @Gobelin, @Boss) pour qu'ils apparaissent en rouge.
+
+🎲 GESTION DES DÉS
+- MODE AVENTURE : Utilise EXCLUSIVEMENT les dés pré-lancés. Affiche toujours le calcul complet : [🎲 Jet de [Force] pour @Nom : 15 + 3 = 18 — Succès !].
+- MODE INTERACTIF : Stoppe ta narration après avoir demandé le jet. "Zac, fais-moi un jet d'Athlétisme (DD 15)". Attends sa réponse avant de conclure.
+
+✨ STYLE DE NARRATION
+- STYLE : Ultra-concis (2-3 paragraphes), dramatique, utilise @Nom pour mentionner les acteurs.
+- DÉROULEMENT : Décris les ACTIONS et les RÉSULTATS basés sur les dés fournis.
+- TRACKER DE COMBAT : À chaque tour de combat, affiche obligatoirement :
+  ⚔️ ROUND [X] | PROCHAIN : @Suivant
+- SYNCHRONISATION : Ton but est de fournir à la fois la narration et l'état mis à jour dans un format structuré.
+- NARRATION : Décris l'action. Ultra-concis (2-3 paragraphes).
+- ÉTAT : Si les PV, quêtes, lieu ou temps changent, inclus-les dans les champs correspondants.
+- FIN DE RÉPONSE : Termine toujours par une question directe à l'un des joueurs.`
+
 
 // ============================================================
 // DICE ROLLING
+// ============================================================
+
+// ============================================================
+// DYNAMIC DICE ROLLING (Targeted)
 // ============================================================
 
 function rollDice(sides: number): number {
   return Math.floor(Math.random() * sides) + 1
 }
 
-function preRollDice(): string {
+function executeRoll(expr: string): { total: number; breakdown: string } {
+  // Simple parser for "XdY+Z" or "XdY-Z" or "XdY"
+  const match = expr.toLowerCase().match(/^(\d+)?d(\d+)([+-]\d+)?$/)
+
+  if (match) {
+    const num = parseInt(match[1] || "1")
+    const sides = parseInt(match[2])
+    const mod = parseInt(match[3] || "0")
+
+    const rolls = []
+    let sum = 0
+    for (let i = 0; i < num; i++) {
+      const r = rollDice(sides)
+      rolls.push(r)
+      sum += r
+    }
+    const total = sum + mod
+    const breakdown = `[${rolls.join(' + ')}]${mod !== 0 ? (mod > 0 ? ' + ' + mod : ' - ' + Math.abs(mod)) : ''} = ${total}`
+
+    return { total, breakdown }
+  }
+
+  // Handle constant values or simple math like "1-1" or "5"
+  const constMatch = expr.match(/^(\d+)([+-]\d+)?$/)
+  if (constMatch) {
+    const base = parseInt(constMatch[1])
+    const mod = parseInt(constMatch[2] || "0")
+    const total = base + mod
+    const breakdown = `${base}${mod !== 0 ? (mod > 0 ? ' + ' + mod : ' - ' + Math.abs(mod)) : ''} = ${total}`
+    return { total, breakdown }
+  }
+
+  return { total: 0, breakdown: "Erreur format" }
+}
+
+async function identifyAndExecuteRolls(
+  actions: TurnAction[],
+  context: CampaignContext
+): Promise<IntendedRoll[]> {
+  if (!ai) return []
+
+  const actionsSummary = actions.map(a => `- @${a.characterName}: ${a.action}`).join('\n')
+  const charSummary = context.characters.map(c => {
+    const wp = c.weapons?.[0]
+    return `- ${c.name}: CA=${c.ac}, Arme=${wp ? `${wp.name} (${wp.damageDice}, mod ${wp.attackMod})` : 'aucune'}, Stats=${JSON.stringify(c.stats)}`
+  }).join('\n')
+
+  const prompt = `Tu es un assistant moteur de règles D&D 5e. 
+Analyse les actions des joueurs et détermine quels jets de dés sont nécessaires.
+
+ACTIONS:
+${actionsSummary}
+
+CONTEXTE PERSONNAGES:
+${charSummary}
+
+Réponds UNIQUEMENT avec un tableau JSON d'objets IntendedRoll :
+[{"characterName": "...", "actionType": "attack" | "check" | "save" | "damage", "expression": "1d20+5", "label": "..."}]
+
+Règles :
+- Si un joueur attaque, crée un jet "attack" (1d20 + mod + bonus maîtrise) ET un jet "damage" (dé d'arme + mod).
+- Utilise les modificateurs de stats appropriés (FOR pour corps-à-corps, DEX pour distance/finesse).
+- Si aucune action mécanique n'est requise, renvoie [].`
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash-lite",
+      contents: prompt
+
+    })
+    const text = response.text || '[]'
+    const jsonMatch = text.match(/\[.*\]/s)
+    if (!jsonMatch) return []
+
+    const intendedRolls: IntendedRoll[] = JSON.parse(jsonMatch[0])
+
+    // Execute each roll via LOCAL API (roll-dice.sh)
+    for (const r of intendedRolls) {
+      try {
+        const res = await fetch(`/api/roll-dice?expr=${encodeURIComponent(r.expression)}&label=${encodeURIComponent(r.label || '')}`)
+        const data = await res.json()
+        if (data.output) {
+          const cleanOutput = stripAnsi(data.output)
+          // Parse the "FINAL:X" part from output
+          const finalMatch = cleanOutput.match(/FINAL:(\d+)/)
+          r.result = finalMatch ? parseInt(finalMatch[1]) : 0
+          
+          // Use a much cleaner breakdown for display
+          const lines = cleanOutput.split('\n')
+          const diceLine = lines.find((l: string) => l.startsWith('Dice:'))
+          const totalLine = lines.find((l: string) => l.startsWith('Total:'))
+          
+          if (diceLine && totalLine) {
+            r.breakdown = `${diceLine.trim()} ➔ ${totalLine.trim()}`
+          } else {
+            r.breakdown = cleanOutput.split('\n').filter((l: string) => !l.startsWith('FINAL:') && l.trim()).pop() || '???'
+          }
+        }
+      } catch (e) {
+        console.error("Local dice roll failed:", e)
+        const exec = executeRoll(r.expression)
+        r.result = exec.total
+        r.breakdown = exec.breakdown
+      }
+    }
+
+    return intendedRolls
+  } catch (e) {
+    console.warn("Targeted rolls identification failed, falling back to random:", e)
+    return []
+  }
+}
+
+function preRollDiceFallback(): string {
   const rolls = {
-    d20_1: rollDice(20),
-    d20_2: rollDice(20),
-    d20_3: rollDice(20),
+    d20: Array.from({ length: 5 }, () => rollDice(20)),
     d12: rollDice(12),
     d10: rollDice(10),
-    d8: rollDice(8),
-    d6_1: rollDice(6),
-    d6_2: rollDice(6),
-    d4: rollDice(4),
+    d8: [rollDice(8), rollDice(8)],
+    d6: [rollDice(6), rollDice(6), rollDice(6)],
+    d4: [rollDice(4), rollDice(4)],
   }
-  return `Dés pré-lancés (utilise-les si un jet est nécessaire) :
-- d20: ${rolls.d20_1}, ${rolls.d20_2}, ${rolls.d20_3}
-- d12: ${rolls.d12} | d10: ${rolls.d10} | d8: ${rolls.d8}
-- d6: ${rolls.d6_1}, ${rolls.d6_2} | d4: ${rolls.d4}`
+  return `[DICE]🔮 **Dés du Destin (Réserve)**\n   • d20 : [${rolls.d20.join(', ')}] • d8 : [${rolls.d8.join(', ')}]\n   • d6 : [${rolls.d6.join(', ')}] • d4 : [${rolls.d4.join(', ')}][/DICE]`
 }
 
 // ============================================================
@@ -177,32 +405,59 @@ export async function resolveTurn(
     return { narration: "⚠️ L'API Gemini n'est pas configurée. Ajoutez VITE_GEMINI_API_KEY dans votre fichier .env." }
   }
 
-  const systemPrompt = buildTurnSystemPrompt(context)
-  const diceRolls = preRollDice()
+  const intendedRolls = await identifyAndExecuteRolls(actions, context)
+  
+  // Ce que le joueur voit : seulement les jets spécifiques identifiés
+  const diceForPlayer = intendedRolls.length > 0
+    ? `[DICE]${intendedRolls.map(r => `🎲 **${r.label}** (@${r.characterName})\n   ↳ \`${r.breakdown} (${r.expression})\``).join('\n\n')}[/DICE]`
+    : ""
 
-  const actionsText = actions.map(a => 
-    `➤ ${a.characterName} (joueur: ${a.playerName}) : "${a.action}"`
+  // Ce que l'IA reçoit : les jets spécifiques + la réserve du destin pour le reste
+  const diceForAi = intendedRolls.length > 0
+    ? intendedRolls.map(r => `[🎲 Jet pour @${r.characterName} (${r.label}) : ${r.breakdown}]`).join('\n')
+    : preRollDiceFallback()
+
+  const actionsText = actions.map(a =>
+    `➤ **@${a.characterName}** : "${a.action}"`
   ).join('\n')
 
+  // Identify characters who did NOT act this turn
+  const actingNames = new Set(actions.map(a => a.characterName))
+  const silentChars = context.characters
+    .filter(c => !actingNames.has(c.name))
+    .map(c => `@${c.name}`)
+
+  const silentNote = silentChars.length > 0
+    ? `\n\n⚠️ Ces joueurs n'ont PAS agi ce tour : ${silentChars.join(', ')}. Interpelle-les à la fin de ta narration en leur demandant ce qu'ils font.`
+    : ''
+
+  const systemPrompt = buildTurnSystemPrompt(context)
   const fullPrompt = `${systemPrompt}
 
 ${DM_RULES}
 
 ═══════════════════════════════════
-        🎲 ${diceRolls}
+        🎲 RÉSULTATS DES DÉS (À UTILISER IMPÉRATIVEMENT)
 ═══════════════════════════════════
+${diceForAi}
 
 ═══════════════════════════════════
         ACTIONS DES JOUEURS CE TOUR
 ═══════════════════════════════════
 ${actionsText}
+${silentNote}
 
-Résous ce tour. Décris ce qui se passe pour TOUS les joueurs de manière cohérente et cinématique. Si des jets de dés sont nécessaires, utilise les dés pré-lancés ci-dessus.`
+Résous ce tour de manière cinématique, DRAMATIQUE mais ULTRA-CONCISE.
+- Va droit au but : 2-3 paragraphes max.
+- Utilise les résultats des dés fournis. Ne ré-invente pas les résultats.
+- [UPDATE_STATE] : Produis le JSON à la fin pour les PV (Joueurs et Ennemis si possible), Quêtes, Lieu. Exemple: [UPDATE_STATE]{"characters": [{"name": "Zac", "hp": 5}]}[/UPDATE_STATE].
+- Termine par une question directe.
+`
 
   let attempts = 0
   const maxAttempts = 3
   const baseDelay = 1000
-  const models = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.5-pro']
+  const models = ['gemini-2.5-flash-lite', 'gemini-2.5-flash']
 
   while (attempts < maxAttempts) {
     const currentModel = models[attempts % models.length]
@@ -214,16 +469,62 @@ Résous ce tour. Décris ce qui se passe pour TOUS les joueurs de manière cohé
           temperature: 0.9,
           topP: 0.95,
           maxOutputTokens: 2048,
+          responseMimeType: "application/json",
+          responseJsonSchema: {
+            type: "object",
+            properties: {
+              narration: { type: "string" },
+              characters: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string" },
+                    hp: { type: "integer" }
+                  },
+                  required: ["name", "hp"]
+                }
+              },
+              quests: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    title: { type: "string" },
+                    description: { type: "string" },
+                    priority: { type: "string" }
+                  },
+                  required: ["title", "description"]
+                }
+              },
+              location: { type: "string" },
+              time: { type: "string" }
+            },
+            required: ["narration"]
+          }
         }
       })
 
-      const text = response.text || ''
-      return { narration: text.trim(), isError: false }
+      const rawText = response.text || '{}'
+      try {
+        const json = JSON.parse(rawText)
+        
+        // Inclure les résultats des dés filtrés au début de la narration
+        const finalNarration = diceForPlayer ? `${diceForPlayer}\n\n${json.narration || ''}` : (json.narration || '')
+
+        return {
+          narration: finalNarration,
+          stateUpdate: json,
+          isError: false
+        }
+      } catch (e) {
+        return { narration: rawText.trim(), isError: false }
+      }
     } catch (error: any) {
       attempts++
       const status = error?.status || error?.code
       const msg = (error?.message || '').toLowerCase()
-      
+
       // Retry on 503 (Unavailable), 429 (Too many requests), or other temporary issues
       if (attempts < maxAttempts && (status === 503 || status === 429 || msg.includes('503') || msg.includes('429') || msg.includes('demand'))) {
         const delay = baseDelay * Math.pow(2, attempts - 1)
@@ -284,7 +585,7 @@ Ta réponse (concise, 1-2 paragraphes max) :`
       attempts++
       const status = error?.status || error?.code
       const msg = (error?.message || '').toLowerCase()
-      
+
       if (attempts < maxAttempts && (status === 503 || status === 429 || msg.includes('503') || msg.includes('429') || msg.includes('demand'))) {
         await new Promise(resolve => setTimeout(resolve, 500))
         continue
@@ -304,7 +605,7 @@ Ta réponse (concise, 1-2 paragraphes max) :`
 export async function generateSceneImage(
   sceneDescription: string,
   context: CampaignContext
-): Promise<{ base64: string; mimeType: string } | null> {
+): Promise<{ base64: string; mimeType: string; caption?: string } | null> {
   if (!ai) return null
 
   const charDescriptions = context.characters.map(c => {
@@ -320,11 +621,13 @@ Scene: ${sceneDescription}
 
 Characters present: ${charDescriptions}
 
-Style: Dark fantasy anime illustration, dramatic lighting, high detail, no text or UI elements. The image should feel like a key frame from an anime or a high-quality RPG illustration book.`
+Style: Dark fantasy anime illustration, dramatic lighting, high detail, no text or UI elements. The image should feel like a key frame from an anime or a high-quality RPG illustration book.
+
+IMPORTANT: Provide a very short, poetic caption (1 sentence maximum) in French that captures the essence of this scene first, then generate the image. Do NOT put text ON the image.`
 
   let attempts = 0
   const maxAttempts = 2
-  const models = ['gemini-2.5-flash-lite', 'gemini-2.5-flash']
+  const models = ['gemini-2.5-flash-image']
 
   while (attempts < maxAttempts) {
     const currentModel = models[attempts % models.length]
@@ -337,17 +640,21 @@ Style: Dark fantasy anime illustration, dramatic lighting, high detail, no text 
         }
       })
 
-      // Extract image from response
+      // Extract image and text from response
       const candidates = response.candidates
       if (candidates && candidates[0]?.content?.parts) {
+        let base64 = ''
+        let mimeType = ''
+        let caption = ''
         for (const part of candidates[0].content.parts) {
           if (part.inlineData) {
-            return {
-              base64: part.inlineData.data as string,
-              mimeType: (part.inlineData.mimeType as string) || 'image/png'
-            }
+            base64 = part.inlineData.data as string
+            mimeType = (part.inlineData.mimeType as string) || 'image/png'
+          } else if (part.text) {
+            caption = part.text.trim()
           }
         }
+        if (base64) return { base64, mimeType, caption }
       }
       return null
     } catch (error: any) {
@@ -386,6 +693,7 @@ export async function resolveTurnWithImage(
       if (image) {
         result.imageBase64 = image.base64
         result.imageMimeType = image.mimeType
+        result.caption = image.caption
       }
     } catch (e) {
       console.warn('⚠️ Image generation skipped:', e)
@@ -401,7 +709,7 @@ export async function resolveTurnWithImage(
 
 function getErrorMessage(error: any): string {
   let msg = error?.message || ''
-  
+
   // Try to parse JSON if the error message is a stringified JSON
   try {
     if (msg.includes('{')) {
@@ -420,8 +728,8 @@ function getErrorMessage(error: any): string {
 
   const status = error?.status || error?.code || ''
   const isBusy = msg.includes('429') || status === 429 || msg.includes('RESOURCE_EXHAUSTED') ||
-                 msg.includes('503') || status === 503 || msg.includes('UNAVAILABLE') ||
-                 msg.includes('high demand')
+    msg.includes('503') || status === 503 || msg.includes('UNAVAILABLE') ||
+    msg.includes('high demand')
 
   if (isBusy) {
     // Try to extract retry delay if present

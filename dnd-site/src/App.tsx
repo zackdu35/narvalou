@@ -219,6 +219,7 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
   const [selectedSession, setSelectedSession] = useState<any>(null)
   const [currentStep, setCurrentStep] = useState(0)
   const [optimisticImage, setOptimisticImage] = useState<string | null>(null)
+  const lastFetchId = useRef(0)
 
   const curT = translations[language]
 
@@ -231,16 +232,22 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
 
   const fetchInitial = async (showLoading = false) => {
     if (!supabase || !id) return
+    const fetchId = ++lastFetchId.current
     if (showLoading) setIsLoading(true)
     try {
-      console.log(`📡 Fetching initial data for campaign ${id}...`);
+      console.log(`📡 Fetching initial data for campaign ${id} (Fetch #${fetchId})...`);
       const { data: camp } = await supabase!.from('campaigns').select('*').eq('id', id).single()
       const { data: chars } = await supabase!.from('characters').select('*').eq('campaign_id', id)
       const { data: quests } = await supabase!.from('quests').select('*').eq('campaign_id', id)
       const { data: sessions } = await supabase!.from('sessions').select('*').eq('campaign_id', id).order('session_number', { ascending: true })
 
+      if (fetchId !== lastFetchId.current) {
+        console.warn(`🛑 Fetch #${fetchId} is stale (Latest is #${lastFetchId.current}), ignoring results.`);
+        return
+      }
+
       if (camp) {
-        console.log(`✅ Data fetched successfully for: ${camp.name}`);
+        console.log(`✅ Data fetched successfully for: ${camp.name} (Fetch #${fetchId})`);
         const merged = {
           campaignName: camp.name,
           universe: camp.universe,
@@ -253,27 +260,40 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
           currentScene: {
             description: camp.scene_description,
             image: camp.scene_image,
+            caption: '', // Initialized empty, will be filled by SYNC_SCENE
             isGenerating: camp.is_generating
           },
-          partyStatus: (chars || []).map(c => ({ id: c.id.split('_').pop(), name: c.name, hp: c.hp_current, status: "Prêt" })),
-          characters: (chars || []).map(c => ({
-            id: c.id.split('_').pop(),
-            name: c.name,
-            race: c.race,
-            class: c.class,
-            level: c.level,
-            hp: { current: c.hp_current, max: c.hp_max },
-            xp: { current: c.xp_current, next: c.xp_next },
-            spellSlots: c.spell_slots || { current: 0, max: 0 },
-            stats: c.stats,
-            inventory: c.inventory,
-            grimoire: c.grimoire,
-            features: c.features,
-            ideals: c.ideals,
-            bonds: c.bonds,
-            image: c.image,
-            description: c.description
-          })),
+          partyStatus: (chars || []).map(c => ({ id: c.id, name: c.name, hp: c.hp_current, status: "Prêt" })),
+            characters: (chars || []).map(c => {
+              const baseStats = c.stats || {};
+              return {
+                id: c.id,
+                name: c.name,
+                race: c.race,
+                sex: baseStats.sex || '?',
+                class: c.class,
+                level: c.level,
+                hp: { current: c.hp_current, max: c.hp_max },
+                xp: { current: c.xp_current, next: c.xp_next },
+                spellSlots: c.spell_slots || { current: 0, max: 0 },
+                stats: baseStats,
+                ac: baseStats.ac || (10 + Math.floor(((baseStats.dex || 10) - 10) / 2)),
+                speed: baseStats.speed || 30,
+                hitDice: baseStats.hitDice || '1d8',
+                proficiencyBonus: baseStats.proficiencyBonus || 2,
+                skillProficiencies: baseStats.skillProficiencies || [],
+                languages: baseStats.languages || ['Commun'],
+                allies: baseStats.allies || [],
+                inventory: c.inventory || [],
+                spells: c.grimoire,
+                features: c.features || [],
+                ideals: c.ideals,
+                bonds: c.bonds,
+                image: c.image,
+                description: c.description,
+                background: baseStats.background || ''
+              }
+            }),
           activeQuests: (quests || []).map(q => ({ title: q.title, description: q.description, priority: q.priority })),
           sessions: (sessions || []).map(s => ({
             id: s.session_number,
@@ -297,13 +317,18 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
     fetchInitial(true)
 
     if (mode === 'live') {
-      const handleUpdate = () => fetchInitial(false);
+      let timeout: any = null;
+      const handleUpdate = () => {
+        if (timeout) clearTimeout(timeout);
+        timeout = setTimeout(() => fetchInitial(false), 300);
+      };
 
       const subCamp = supabase!.channel(`camp-${id}`).on('postgres_changes', { event: '*', schema: 'public', table: 'campaigns', filter: `id=eq.${id}` }, handleUpdate).subscribe()
       const subChars = supabase!.channel(`chars-${id}`).on('postgres_changes', { event: '*', schema: 'public', table: 'characters', filter: `campaign_id=eq.${id}` }, handleUpdate).subscribe()
       const subQuests = supabase!.channel(`quests-${id}`).on('postgres_changes', { event: '*', schema: 'public', table: 'quests', filter: `campaign_id=eq.${id}` }, handleUpdate).subscribe()
       
       return () => { 
+        if (timeout) clearTimeout(timeout);
         supabase!.removeChannel(subCamp)
         supabase!.removeChannel(subChars)
         supabase!.removeChannel(subQuests)
@@ -323,10 +348,30 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
         .select('*')
         .eq('campaign_id', id)
         .not('content', 'like', '[REFRESH%') 
-        .not('content', 'like', '[SYNC_SCENE%')
         .not('content', 'like', '[TURN_RESOLVED%')
         .order('created_at', { ascending: true })
-      if (msgs) setMessages(msgs)
+      
+      if (msgs) {
+        setMessages(msgs)
+        // Find latest sync message to restore caption
+        const latestSync = [...msgs].reverse().find(m => m.content.toUpperCase().startsWith('[SYNC_SCENE:'))
+        if (latestSync) {
+          try {
+            const tag = "[SYNC_SCENE:";
+            const content = latestSync.content;
+            const startIndex = content.toUpperCase().indexOf(tag) + tag.length;
+            const endIndex = content.lastIndexOf(']');
+            const syncData = JSON.parse(content.substring(startIndex, endIndex));
+            setData((prev: any) => prev ? ({
+              ...prev,
+              currentScene: {
+                ...prev.currentScene,
+                caption: syncData.caption
+              }
+            }) : prev);
+          } catch(e) {}
+        }
+      }
     }
     fetchMsgs()
     
@@ -356,18 +401,29 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
                   setOptimisticImage(null);
                 }
 
-                setData((prev: any) => ({
-                  ...prev,
-                  currentLocation: syncData.location || prev.currentLocation,
-                  currentTimeOfDay: syncData.time || prev.currentTimeOfDay,
-                  currentScene: {
-                    ...prev.currentScene,
-                    description: syncData.description || prev.currentScene.description,
-                    image: syncData.image || prev.currentScene.image,
-                    isGenerating: false
-                  }
-                }));
-                triggerRefetch();
+                lastFetchId.current++; // Invalidate any pending older fetches
+                setData((prev: any) => {
+                    if (!prev) return prev;
+                    const next = { ...prev };
+                    
+                    if (syncData.location) next.currentLocation = syncData.location;
+                    if (syncData.time) next.currentTimeOfDay = syncData.time;
+                    
+                    next.currentScene = {
+                      ...next.currentScene,
+                      description: syncData.description || next.currentScene.description,
+                      image: syncData.image || next.currentScene.image,
+                      caption: syncData.caption || next.currentScene.caption,
+                      isGenerating: false
+                    };
+
+                    // On ne met PLUS à jour HP et Quêtes via le message SYNC_SCENE
+                    // pour laisser la souscription PostGres (DB) être la seule source de vérité.
+                    // Seuls les éléments visuels de scène sont conservés pour la fluidité.
+
+                    return next;
+                  });
+                  triggerRefetch();
               } catch (e) {
                  triggerRefetch();
               }
@@ -377,12 +433,15 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
             return;
           }
 
-          setMessages(prev => [...prev, newMsg])
+          setMessages(prev => {
+            if (prev.some(m => m.id === newMsg.id)) return prev;
+            return [...prev, newMsg];
+          })
           
           const isSyncSignal = content.toUpperCase().includes('[SYNC_SCENE:') || content.toUpperCase().includes('[REFRESH')
           
           if (!isSyncSignal && (newMsg.sender_id === 'DM' || newMsg.sender_id === 'SYSTEM' || newMsg.sender_id === 'Hagrid' || newMsg.sender_id === 'Le Maître du Donjon')) {
-            setTimeout(triggerRefetch, 3000); 
+            setTimeout(triggerRefetch, 500); 
           }
 
           const audioMatch = newMsg.content.match(/\[AUDIO:(.*?)\]/)
@@ -524,9 +583,13 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
                     e.currentTarget.src = '/assets/ui/scene_placeholder.png' 
                   }} 
                 />
+                {data.currentScene.caption && !data.currentScene.isGenerating && (
+                  <div className="scene-caption-overlay">
+                    {data.currentScene.caption}
+                  </div>
+                )}
               </div>
               <div className="live-caption-box">
-                <div className="scene-header-badge">SCÈNE ACTUELLE</div>
                 <p className="live-description">{data.currentScene.description}</p>
               </div>
             </div>
@@ -541,16 +604,27 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
                 campaignId={id || ''} 
                 currentRole={currentRole}
                 onSceneUpdate={(sceneData: any) => {
+                  lastFetchId.current++; // Invalidate any older fetches
                   if (sceneData.image && sceneData.image.startsWith('data:')) {
                     setOptimisticImage(sceneData.image);
                   }
-                  setData((prev: any) => ({
-                    ...prev,
-                    currentScene: {
-                      ...prev.currentScene,
-                      ...sceneData
-                    }
-                  }))
+                  setData((prev: any) => {
+                    if (!prev) return prev;
+                    const next = { ...prev };
+                    
+                    // Update scene
+                    next.currentScene = {
+                      ...next.currentScene,
+                      ...sceneData,
+                      isGenerating: sceneData.isGenerating ?? next.currentScene.isGenerating
+                    };
+
+                    // Update location/time if provided
+                    if (sceneData.location) next.currentLocation = sceneData.location;
+                    if (sceneData.time) next.currentTimeOfDay = sceneData.time;
+
+                    return next;
+                  });
                 }}
               />
             </div>

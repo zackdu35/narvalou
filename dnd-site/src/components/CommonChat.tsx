@@ -22,10 +22,28 @@ interface CommonChatProps {
 export const CommonChat = ({ messages, data, curT, sendMessage, sendDmMessage, supabase, campaignId, currentRole, onSceneUpdate }: CommonChatProps) => {
   const [typedMessage, setTypedMessage] = useState('')
   const [isResolving, setIsResolving] = useState(false)
+  const isResolvingRef = useRef(false)
+  const lastProcessedActionId = useRef<string | null>(null)
   const [isDmThinking, setIsDmThinking] = useState(false)
-  const [imageGenEnabled, setImageGenEnabled] = useState(true)
+  const [imageGenEnabled, setImageGenEnabled] = useState(false)
+  const [gameMode, setGameMode] = useState<'adventure' | 'interactive'>('adventure')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
+
+  // --- Helper: Admin Proxy via local proxy (Bypass RLS) ---
+  const adminProxy = async (method: 'UPDATE' | 'INSERT' | 'DELETE', table: string, params: { id?: any, data?: any, filter?: any, match?: any }) => {
+    try {
+      const res = await fetch('/api/admin-proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ method, table, ...params })
+      })
+      return await res.json()
+    } catch (e) {
+      console.error(`Admin proxy failed for ${table} ${method}:`, e)
+      return { error: e }
+    }
+  }
 
   // Filtrer les messages visibles  
   const commonMessages = messages.filter((m: any) => {
@@ -57,7 +75,8 @@ export const CommonChat = ({ messages, data, curT, sendMessage, sendDmMessage, s
 
   // Trouver le perso du joueur actuel
   const currentCharacter = data.characters?.find((c: any) => 
-    c.id?.toLowerCase() === currentRole?.toLowerCase()
+    c.id?.toLowerCase() === currentRole?.toLowerCase() ||
+    c.id?.toLowerCase().split('_').pop() === currentRole?.toLowerCase()
   )
 
   // Construire le contexte de campagne pour Gemini
@@ -70,11 +89,27 @@ export const CommonChat = ({ messages, data, curT, sendMessage, sendDmMessage, s
     characters: (data.characters || []).map((c: any) => ({
       id: c.id,
       name: c.name,
+      sex: c.sex,
       race: c.race,
       class: c.class,
       level: c.level,
+      xp: c.xp,
       hp: c.hp,
+      hitDice: c.hit_dice || c.hitDice,
       stats: c.stats,
+      ac: c.ac,
+      proficiencyBonus: c.proficiencyBonus,
+      speed: c.speed,
+      state: c.state,
+      background: c.background,
+      languages: c.languages,
+      allies: c.allies,
+      weapons: c.weapons,
+      spells: c.spells,
+      spellSlots: c.spellSlots,
+      conditions: c.conditions,
+      savingThrows: c.savingThrows,
+      skillProficiencies: c.skillProficiencies,
       inventory: c.inventory,
       features: c.features,
       description: c.description,
@@ -85,37 +120,152 @@ export const CommonChat = ({ messages, data, curT, sendMessage, sendDmMessage, s
     recentMessages: commonMessages.slice(-20).map((m: any) => ({
       sender: m.sender_id === 'DM' ? 'Maître du Donjon' : 
               (data.characters?.find((c: any) => c.id === m.sender_id)?.name || m.sender_id),
-      content: m.content.replace(/\[AUDIO:.*?\]/g, '').trim()
-    }))
+      content: m.content
+        .replace(/\[AUDIO:.*?\]/g, '')
+        .replace(/\[SYNOPSIS\][\s\S]*?\[\/SYNOPSIS\]/g, '')
+        .replace(/\[UPDATE_STATE\][\s\S]*?\[\/UPDATE_STATE\]/g, '')
+        .replace(/\[SYNOPSIS:[\s\S]*?\]/g, '') // Legacy support
+        .replace(/\[UPDATE_STATE:[\s\S]*?\]/g, '') // Legacy support
+        .trim()
+    })),
+    gameMode: gameMode
   })
 
   // ─────────────────────────────────────
   // ⚔️ RÉSOUDRE LE TOUR
   // ─────────────────────────────────────
   const handleResolveTurn = async () => {
-    if (pendingActions.length === 0 || isResolving) return
+    console.log("🎬 Début de handleResolveTurn...", { 
+      actionsCount: pendingActions.length, 
+      isResolving, 
+      isGenerating: data.currentScene?.isGenerating 
+    })
+    if (pendingActions.length === 0 || isResolving || isResolvingRef.current) {
+      console.warn("🚫 handleResolveTurn annulé (actions vides ou déjà en cours)")
+      return
+    }
+    
+    const lastAction = messages.filter((m: any) => m.receiver_id === 'action').pop()
+    if (lastAction?.id === lastProcessedActionId.current) return
+    if (lastAction) lastProcessedActionId.current = lastAction.id
+
     if (!isGeminiAvailable()) {
       sendDmMessage("⚠️ L'IA du DM n'est pas configurée (clé API manquante).", 'global')
       return
     }
 
+    // 1. Verrou ATOMIQUE en base de donnée pour éviter les doubles résolutions
+    const targetId = isNaN(Number(campaignId)) ? campaignId : Number(campaignId)
+    const resultLock = await adminProxy('UPDATE', 'campaigns', {
+      id: targetId,
+      data: { is_generating: true },
+      filter: { neq: { col: 'is_generating', val: true } }
+    })
+    
+    if (resultLock.error || resultLock.count === 0) {
+      console.warn("🛑 Une résolution est déjà en cours ou a été prise par un autre client via Admin Proxy.", resultLock)
+      return
+    }
+
+    console.log("✅ Verrouillage réussi via Proxy.")
+
     setIsResolving(true)
+    isResolvingRef.current = true
     const context = buildContext()
     const actionsThisTurn = [...pendingActions]
     
-    // Marquer le début de génération partout
+    // Marquer l'UI locale
     onSceneUpdate?.({ isGenerating: true })
-    await supabase.from('campaigns').update({ is_generating: true }).eq('id', campaignId)
 
     // Au lieu de supprimer (erreur de permissions), on marque la fin du tour pour tout le monde
     sendMessage('[TURN_RESOLVED]', 'global')
 
     try {
       const result = await resolveTurnWithImage(actionsThisTurn, context, imageGenEnabled)
-      if (result.narration) sendDmMessage(result.narration, 'global')
+      
+      let finalNarration = result.narration || ''
+      
+      // Look for [SYNOPSIS]...[/SYNOPSIS] update (Memory) - New Format
+      const synopsisMatch = finalNarration.match(/\[SYNOPSIS\]\s*([\s\S]*?)\s*\[\/SYNOPSIS\]/)
+      if (synopsisMatch?.[1]) {
+        const newSummary = synopsisMatch[1].trim()
+        console.log("📝 Mise à jour de la mémoire via Proxy :", newSummary)
+        await adminProxy('UPDATE', 'campaigns', { id: targetId, data: { summary: newSummary } })
+      }
+
+      // Look for [SYNOPSIS: ...] update (Memory) - Legacy Format
+      const legacySynopsisMatch = finalNarration.match(/\[SYNOPSIS:\s*([\s\S]*?)\]/)
+      if (legacySynopsisMatch?.[1]) {
+        const newSummary = legacySynopsisMatch[1].trim()
+        await adminProxy('UPDATE', 'campaigns', { id: targetId, data: { summary: newSummary } })
+      }
+
+      const state = result.stateUpdate || {}
+      if (state.characters) {
+        const charUpdates = state.characters.map(async (charUpdate: any) => {
+          const charName = charUpdate.name.replace('@', '').trim()
+          const char = data.characters?.find((c: any) => c.name.toLowerCase() === charName.toLowerCase())
+          if (char) {
+            const newHp = Math.max(0, charUpdate.hp)
+            const fullId = char.id
+            console.log(`❤️ Mise à jour PV via Proxy pour ${charName} : ${newHp}`)
+            const res = await adminProxy('UPDATE', 'characters', { id: fullId, data: { hp_current: newHp } })
+            if (res.error || res.count === 0) console.error(`❌ Échec PV pour ${charName}:`, res.error || "Count 0")
+          } else {
+            console.warn(`⚠️ Personnage non trouvé pour mise à jour PV : ${charName}`)
+          }
+        })
+        await Promise.all(charUpdates)
+      }
+
+      if (state.quests) {
+        console.log("📜 Mise à jour atomique des quêtes...")
+        // 1. Dédupliquer par titre au cas où l'IA renvoie des doublons
+        const uniqueQuests = Array.from(new Map(state.quests.map((q: any) => [q.title, q])).values())
+
+        // 2. Supprimer les anciennes quêtes via Proxy
+        await adminProxy('DELETE', 'quests', { match: { campaign_id: campaignId } })
+        
+        // 3. Insertion via Proxy (Bulk Insert possible)
+        if (uniqueQuests.length > 0) {
+          const questsToInsert = uniqueQuests.map((q: any) => ({
+            campaign_id: campaignId,
+            title: q.title,
+            description: q.description,
+            priority: q.priority || 'normal'
+          }))
+          const resInsert = await adminProxy('INSERT', 'quests', { data: questsToInsert })
+          if (resInsert.error) console.error("❌ Erreur insertion quêtes:", resInsert.error)
+        }
+      }
+
+      if (state.location || state.time) {
+        const up: any = {}
+        if (state.location) up.current_location = state.location
+        if (state.time) up.current_time_of_day = state.time
+        await adminProxy('UPDATE', 'campaigns', { id: targetId, data: up })
+      }
+      
+      // Remove all technical tags and any trailing noise
+      finalNarration = finalNarration
+        .replace(/\[SYNOPSIS\][\s\S]*?\[\/SYNOPSIS\]/g, '')
+        .replace(/\[UPDATE_STATE\][\s\S]*?\[\/UPDATE_STATE\]/g, '')
+        .replace(/\[SYNOPSIS:[\s\S]*?\]/g, '')
+        .replace(/\[UPDATE_STATE:[\s\S]*?\]/g, '')
+        .trim()
+
+      if (finalNarration) sendDmMessage(finalNarration, 'global')
+      
+      const fullStateUpdate = {
+        location: state.location || data.currentLocation,
+        time: state.time || data.currentTimeOfDay,
+        // On ne passe plus characters et quests ici car la DB est la source de vérité
+        // via le trigger de refetch auto.
+        description: finalNarration.substring(0, 500)
+      }
 
       if (!result.isError) {
-        onSceneUpdate?.({ description: result.narration })
+        onSceneUpdate?.(fullStateUpdate)
         if (result.imageBase64 && result.imageMimeType) {
           const imageDataUrl = `data:${result.imageMimeType};base64,${result.imageBase64}`
           onSceneUpdate?.({ image: imageDataUrl, isGenerating: false })
@@ -123,42 +273,50 @@ export const CommonChat = ({ messages, data, curT, sendMessage, sendDmMessage, s
           try {
             const blob = await base64ToBlob(result.imageBase64, result.imageMimeType)
             const fileName = `scenes/${campaignId}/turn_${Date.now()}.png`
-            const { data: uploadData } = await supabase.storage.from('campaign-assets').upload(fileName, blob, { contentType: result.imageMimeType })
+            const { data: uploadData } = await supabase.storage.from('campaign-assets').upload(fileName, blob, { 
+              contentType: result.imageMimeType,
+              upsert: true
+            })
 
             if (uploadData?.path) {
               const { data: urlData } = supabase.storage.from('campaign-assets').getPublicUrl(uploadData.path)
               if (urlData?.publicUrl) {
-                await supabase.from('campaigns').update({
-                  scene_image: urlData.publicUrl,
-                  scene_description: result.narration.substring(0, 500),
-                  is_generating: false
-                }).eq('id', campaignId)
+                await adminProxy('UPDATE', 'campaigns', {
+                  id: targetId,
+                  data: {
+                    scene_image: urlData.publicUrl,
+                    scene_description: result.narration.substring(0, 500),
+                    is_generating: false
+                  }
+                })
 
                 sendDmMessage(`[SYNC_SCENE:${JSON.stringify({
+                  ...fullStateUpdate,
                   image: urlData.publicUrl,
-                  description: result.narration.substring(0, 500),
-                  location: context.currentLocation,
-                  time: context.currentTimeOfDay
+                  caption: result.caption,
                 })}]`, 'global')
               }
             }
           } catch (uploadError) {
-            await supabase.from('campaigns').update({ is_generating: false }).eq('id', campaignId)
+            await adminProxy('UPDATE', 'campaigns', { id: targetId, data: { is_generating: false } })
           }
         } else {
-          await supabase.from('campaigns').update({ is_generating: false }).eq('id', campaignId)
+          await adminProxy('UPDATE', 'campaigns', { id: targetId, data: { is_generating: false } })
           onSceneUpdate?.({ image: '/assets/ui/scene_placeholder.png', isGenerating: false })
+          // Still send refresh signal for state even if image failed
+          sendDmMessage(`[SYNC_SCENE:${JSON.stringify(fullStateUpdate)}]`, 'global')
         }
       } else {
-        await supabase.from('campaigns').update({ is_generating: false }).eq('id', campaignId)
+        await adminProxy('UPDATE', 'campaigns', { id: targetId, data: { is_generating: false } })
         onSceneUpdate?.({ isGenerating: false })
       }
     } catch (error) {
       sendDmMessage('💀 Erreur lors de la résolution du tour...', 'global')
-      await supabase.from('campaigns').update({ is_generating: false }).eq('id', campaignId)
+      await adminProxy('UPDATE', 'campaigns', { id: targetId, data: { is_generating: false } })
       onSceneUpdate?.({ isGenerating: false })
     }
     setIsResolving(false)
+    isResolvingRef.current = false
   }
 
   // ─────────────────────────────────────
@@ -168,6 +326,7 @@ export const CommonChat = ({ messages, data, curT, sendMessage, sendDmMessage, s
     e.preventDefault()
     if (!typedMessage.trim() || !supabase) return
     const msg = typedMessage.trim()
+    console.log("📤 Envoi du message:", msg)
 
     if (msg.toLowerCase().startsWith('/dm ')) {
       const question = msg.substring(4).trim()
@@ -211,16 +370,28 @@ export const CommonChat = ({ messages, data, curT, sendMessage, sendDmMessage, s
   useEffect(() => {
     const totalPlayers = data.characters?.length || 0
     if (totalPlayers === 0) return
-    const actions = messages.filter((m: any) => m.receiver_id === 'action')
-    const playersReady = new Set(actions.map(a => a.sender_id))
+    
+    // Filter only actions sent AFTER the last turn resolution
+    const currentActions = messages.filter((m: any) => 
+      m.receiver_id === 'action' && 
+      new Date(m.created_at).getTime() > lastResolveTime
+    )
+    
+    const playersReady = new Set(currentActions.map(a => a.sender_id))
 
     if (playersReady.size >= totalPlayers && !isResolving && !data.currentScene?.isGenerating) {
-      const lastAction = actions[actions.length - 1]
+      const lastAction = currentActions[currentActions.length - 1]
+      console.log("🤖 Tentative de résolution automatique...", { 
+        lastActionSender: lastAction?.sender_id, 
+        currentRole,
+        match: lastAction?.sender_id === currentRole
+      })
+      // Only trigger if WE are the one who sent the last completing action
       if (lastAction && lastAction.sender_id === currentRole) {
         handleResolveTurn()
       }
     }
-  }, [messages, data.characters, isResolving, data.currentScene?.isGenerating, currentRole])
+  }, [messages, data.characters, isResolving, data.currentScene?.isGenerating, currentRole, lastResolveTime])
 
 
 
@@ -243,6 +414,14 @@ export const CommonChat = ({ messages, data, curT, sendMessage, sendDmMessage, s
             />
             <span className="toggle-label">🎨</span>
           </label>
+          <div style={{ margin: '0 8px', width: '1px', height: '16px', background: 'var(--accent-muted)' }}></div>
+          <button 
+            className={`mode-toggle-btn ${gameMode === 'interactive' ? 'active' : ''}`}
+            onClick={() => setGameMode(prev => prev === 'adventure' ? 'interactive' : 'adventure')}
+            title={gameMode === 'adventure' ? 'Mode Aventure (IA lance les dés)' : 'Mode Interactif (Joueur lance les dés)'}
+          >
+            {gameMode === 'adventure' ? '🚀' : '🏁'}
+          </button>
         </div>
       </div>
 
@@ -256,11 +435,39 @@ export const CommonChat = ({ messages, data, curT, sendMessage, sendDmMessage, s
           const senderName = m.sender_id === 'DM' ? '🧙 Le Maître du Donjon' 
             : m.sender_id === 'SYSTEM' ? '⚙️ Système'
             : (senderChar?.name || m.sender_id)
-          const cleanContent = m.content.replace(/\[AUDIO:.*?\]/g, '').trim()
-          const isDmMsg = m.sender_id === 'DM' || m.sender_id === 'SYSTEM'
+          const cleanContent = m.content
+            .replace(/\[AUDIO:.*?\]/g, '')
+            .replace(/\[SYNOPSIS\][\s\S]*?\[\/SYNOPSIS\]/g, '')
+            .replace(/\[UPDATE_STATE\][\s\S]*?\[\/UPDATE_STATE\]/g, '')
+            .replace(/\[SYNOPSIS:[\s\S]*?\]/g, '')
+            .replace(/\[UPDATE_STATE:[\s\S]*?\]/g, '')
+            .trim()
+          const isDiceBlock = cleanContent.startsWith('[DICE]')
           const isSystemAction = cleanContent.startsWith('⚔️')
           const isDmQuestion = cleanContent.startsWith('[/dm]')
           const isRoleplay = cleanContent.startsWith('[/r]')
+
+          if (isDiceBlock) {
+            const diceContent = cleanContent.replace('[DICE]', '').replace('[/DICE]', '').trim()
+            const isFateReserve = diceContent.includes('Dés du Destin')
+            
+            return (
+              <div key={i} className={`common-msg dice-msg ${isFateReserve ? 'fate-reserve' : ''}`}>
+                <div className="dice-container">
+                  {isFateReserve && <div className="dice-note">💡 Dés pré-tirés par le Destin pour les actions imprévues</div>}
+                  {diceContent.split('\n').map((line: string, lidx: number) => (
+                    <div key={lidx} className="dice-line">
+                      {line.split(/(\*\*.*?\*\*|`.*?`)/g).map((part: string, pidx: number) => {
+                        if (part.startsWith('**')) return <strong key={pidx}>{part.replace(/\*\*/g, '')}</strong>
+                        if (part.startsWith('`')) return <code key={pidx}>{part.replace(/`/g, '')}</code>
+                        return part
+                      })}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          }
 
           if (isDmQuestion) {
             return (
@@ -295,15 +502,24 @@ export const CommonChat = ({ messages, data, curT, sendMessage, sendDmMessage, s
             )
           }
 
+          const isDmMsg = m.sender_id === 'DM' || m.sender_id === 'SYSTEM'
+
           return (
             <div key={i} className={`common-msg ${isDmMsg ? 'dm-msg' : 'player-msg'}`}>
               <span className="msg-author">{senderName}:</span>
               <span className="msg-content">
-                {cleanContent.split(/(@[A-Za-z0-9_À-ÿ]+)/g).map((part: string, idx: number) =>
-                  part.match(/^@[A-Za-z0-9_À-ÿ]+/) ? (
-                    <span key={idx} className="mention">{part}</span>
-                  ) : part
-                )}
+                {cleanContent.split(/(@[A-Za-z0-9_À-ÿ]+)/g).map((part: string, idx: number) => {
+                  if (part.match(/^@[A-Za-z0-9_À-ÿ]+/)) {
+                    const name = part.substring(1).toLowerCase()
+                    const isPlayer = data.characters?.some((c: any) => c.name.toLowerCase() === name)
+                    const isEnemy = name.includes('ennemi') || name.includes('gobelin') || name.includes('garde') || !isPlayer
+                    
+                    return (
+                      <span key={idx} className={isEnemy ? "mention-enemy" : "mention"}>{part}</span>
+                    )
+                  }
+                  return part
+                })}
               </span>
             </div>
           )
@@ -338,8 +554,15 @@ export const CommonChat = ({ messages, data, curT, sendMessage, sendDmMessage, s
             <span>⏳ Actions en attente ({pendingActions.length})</span>
             <button 
               className="clear-actions-btn" 
-              onClick={() => sendMessage('[TURN_RESOLVED]', 'global')}
-              title="Annuler les actions"
+              onClick={async () => {
+                console.log("🧹 Déverrouillage forcé via Proxy...")
+                const targetId = isNaN(Number(campaignId)) ? campaignId : Number(campaignId)
+                await sendMessage('[TURN_RESOLVED]', 'global')
+                const res = await adminProxy('UPDATE', 'campaigns', { id: targetId, data: { is_generating: false } })
+                if (res.error) console.error("❌ Échec du déverrouillage:", res.error)
+                else console.log("✅ Déverrouillage réussi via Proxy pour:", targetId)
+              }}
+              title="Réinitialiser et déverrouiller le tour"
             >✕</button>
           </div>
           <div className="pending-list">
