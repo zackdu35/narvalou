@@ -411,6 +411,11 @@ h1, h2, h3, h4 {
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes fadeInRight {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
 @media (max-width: 768px) {
   .session-card {
     grid-template-columns: 1fr;
@@ -1802,6 +1807,32 @@ input:focus {
   padding: 8px 0;
   margin: 5px 0;
 }
+
+/* Roleplay Message (Whisper) */
+.roleplay-msg {
+  border-left: 3px solid #ff79c6;
+  padding: 8px 15px;
+  background: linear-gradient(90deg, rgba(255, 121, 198, 0.12) 0%, rgba(255, 121, 198, 0.03) 100%);
+  border-radius: 6px;
+  margin: 10px 0;
+  width: fit-content;
+  max-width: 90%;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+  animation: fadeInRight 0.3s ease-out;
+}
+
+.roleplay-msg .msg-author {
+  color: #ff79c6;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-shadow: 0 0 8px rgba(255, 121, 198, 0.2);
+}
+
+.roleplay-msg .msg-content {
+  color: #ffb8d1;
+  font-style: italic;
+}
+
 
 .system-action-msg .msg-content {
   font-family: var(--font-display);

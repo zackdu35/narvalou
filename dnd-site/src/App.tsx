@@ -78,9 +78,20 @@ const CampaignSelector = () => {
   }, [])
 
   const fetchCampaigns = async () => {
-    if (!supabase) return
+    console.log("🔍 Fetching campaigns...");
+    if (!supabase) {
+      console.error("❌ Supabase client is null!");
+      return;
+    }
     const { data: list, error } = await supabase.from('campaigns').select('id, name, universe, updated_at').order('id', { ascending: true })
-    if (!error && list) {
+    
+    if (error) {
+      console.error("❌ Error fetching campaigns:", error);
+      return;
+    }
+
+    console.log("✅ Campaigns found:", list?.length);
+    if (list) {
       setCampaigns(list.map(c => ({
         id: c.id,
         name: c.name || `Campagne #${c.id}`,
@@ -311,8 +322,9 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
       const { data: msgs } = await supabase!.from('messages')
         .select('*')
         .eq('campaign_id', id)
-        .not('content', 'like', '[REFRESH%') // Hide old refresh signals
-        .not('content', 'like', '[SYNC_SCENE%') // Hide new sync signals
+        .not('content', 'like', '[REFRESH%') 
+        .not('content', 'like', '[SYNC_SCENE%')
+        .not('content', 'like', '[TURN_RESOLVED%')
         .order('created_at', { ascending: true })
       if (msgs) setMessages(msgs)
     }
@@ -320,70 +332,66 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
     
     const channel = supabase!.channel(`chat-${id}`)
       .on('postgres_changes', { 
-        event: 'INSERT', 
+        event: '*', 
         schema: 'public', 
         table: 'messages',
         filter: `campaign_id=eq.${id}`
       }, (payload) => {
-        const newMsg = payload.new
-        
-        // --- REAL-TIME REFRESH SIGNAL (Bridge v3) ---
-        const content = newMsg.content || "";
-        console.log("📩 Message received for signal check:", content.substring(0, 50));
-
-        if (content.toUpperCase().includes('[SYNC_SCENE:') || content.toUpperCase().includes('[REFRESH')) {
-          console.log("🔴 [SYSTEM] SYNC SIGNAL RECEIVED! Processing...");
+        if (payload.eventType === 'INSERT') {
+          const newMsg = payload.new
           
-          if (content.toUpperCase().includes('[SYNC_SCENE:')) {
-            try {
-              const tag = "[SYNC_SCENE:";
-              const startIndex = content.toUpperCase().indexOf(tag) + tag.length;
-              const endIndex = content.lastIndexOf(']');
-              const jsonPart = content.substring(startIndex, endIndex);
-              const syncData = JSON.parse(jsonPart);
-              console.log("📍 Applying Realtime Update:", syncData.location);
-              
-              // On nettoie l'image optimiste si on reçoit l'URL finale
-              if (syncData.image && syncData.image.startsWith('http')) {
-                setOptimisticImage(null);
-              }
-
-              setData((prev: any) => ({
-                ...prev,
-                currentLocation: syncData.location || prev.currentLocation,
-                currentTimeOfDay: syncData.time || prev.currentTimeOfDay,
-                currentScene: {
-                  ...prev.currentScene,
-                  description: syncData.description || prev.currentScene.description,
-                  image: syncData.image || prev.currentScene.image,
-                  isGenerating: false
+          // --- REAL-TIME REFRESH SIGNAL (Bridge v3) ---
+          const content = newMsg.content || "";
+          
+          if (content.toUpperCase().includes('[SYNC_SCENE:') || content.toUpperCase().includes('[REFRESH')) {
+            if (content.toUpperCase().includes('[SYNC_SCENE:')) {
+              try {
+                const tag = "[SYNC_SCENE:";
+                const startIndex = content.toUpperCase().indexOf(tag) + tag.length;
+                const endIndex = content.lastIndexOf(']');
+                const jsonPart = content.substring(startIndex, endIndex);
+                const syncData = JSON.parse(jsonPart);
+                
+                if (syncData.image && syncData.image.startsWith('http')) {
+                  setOptimisticImage(null);
                 }
-              }));
-              
-              // Trigger a background full refetch
+
+                setData((prev: any) => ({
+                  ...prev,
+                  currentLocation: syncData.location || prev.currentLocation,
+                  currentTimeOfDay: syncData.time || prev.currentTimeOfDay,
+                  currentScene: {
+                    ...prev.currentScene,
+                    description: syncData.description || prev.currentScene.description,
+                    image: syncData.image || prev.currentScene.image,
+                    isGenerating: false
+                  }
+                }));
+                triggerRefetch();
+              } catch (e) {
+                 triggerRefetch();
+              }
+            } else {
               triggerRefetch();
-            } catch (e) {
-               console.error("❌ Failed to parse sync signal:", e);
-               triggerRefetch();
             }
-          } else {
-            console.log("🔄 [SYSTEM] Refresh signal detected.");
-            triggerRefetch();
+            return;
           }
-          return; // Skip adding to chat UI
-        }
 
-        console.log("💬 New message received:", newMsg.sender_id);
-        setMessages(prev => [...prev, newMsg])
-        
-        // --- DM SPEECH FALLBACK ---
-        if (newMsg.sender_id === 'DM' || newMsg.sender_id === 'SYSTEM' || newMsg.sender_id === 'Hagrid' || newMsg.sender_id === 'Le Maître du Donjon') {
-          console.log("🧙‍♂️ DM spoke, preparing fallback sync...");
-          setTimeout(triggerRefetch, 3000); 
-        }
+          setMessages(prev => [...prev, newMsg])
+          
+          const isSyncSignal = content.toUpperCase().includes('[SYNC_SCENE:') || content.toUpperCase().includes('[REFRESH')
+          
+          if (!isSyncSignal && (newMsg.sender_id === 'DM' || newMsg.sender_id === 'SYSTEM' || newMsg.sender_id === 'Hagrid' || newMsg.sender_id === 'Le Maître du Donjon')) {
+            setTimeout(triggerRefetch, 3000); 
+          }
 
-        const audioMatch = newMsg.content.match(/\[AUDIO:(.*?)\]/)
-        if (audioMatch?.[1]) new Audio(audioMatch[1]).play().catch(e => console.error(e))
+          const audioMatch = newMsg.content.match(/\[AUDIO:(.*?)\]/)
+          if (audioMatch?.[1]) new Audio(audioMatch[1]).play().catch(e => console.error(e))
+        } 
+        else if (payload.eventType === 'DELETE') {
+          // Si un message est supprimé (ex: résolution de tour), on l'enlève de la liste locale
+          setMessages(prev => prev.filter(m => m.id !== payload.old.id))
+        }
       }).subscribe()
       
     return () => { supabase!.removeChannel(channel) }
