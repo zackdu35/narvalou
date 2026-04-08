@@ -25,13 +25,13 @@ export const CommonChat = ({ messages, data, curT, sendMessage, sendDmMessage, s
   const isResolvingRef = useRef(false)
   const lastProcessedActionId = useRef<string | null>(null)
   const [isDmThinking, setIsDmThinking] = useState(false)
-  const [imageGenEnabled, setImageGenEnabled] = useState(false)
+  const [imageGenEnabled, setImageGenEnabled] = useState(true)
   const [gameMode, setGameMode] = useState<'adventure' | 'interactive'>('adventure')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
 
   // --- Helper: Admin Proxy via local proxy (Bypass RLS) ---
-  const adminProxy = async (method: 'UPDATE' | 'INSERT' | 'DELETE', table: string, params: { id?: any, data?: any, filter?: any, match?: any }) => {
+  const adminProxy = async (method: 'UPDATE' | 'INSERT' | 'DELETE' | 'STORAGE_UPLOAD', table: string, params: { id?: any, data?: any, filter?: any, match?: any }) => {
     try {
       const res = await fetch('/api/admin-proxy', {
         method: 'POST',
@@ -268,36 +268,48 @@ export const CommonChat = ({ messages, data, curT, sendMessage, sendDmMessage, s
         onSceneUpdate?.(fullStateUpdate)
         if (result.imageBase64 && result.imageMimeType) {
           const imageDataUrl = `data:${result.imageMimeType};base64,${result.imageBase64}`
+          console.log(`📸 Image locale prête (${result.imageMimeType}, ${result.imageBase64.length} chars)`)
           onSceneUpdate?.({ image: imageDataUrl, isGenerating: false })
 
           try {
-            const blob = await base64ToBlob(result.imageBase64, result.imageMimeType)
             const fileName = `scenes/${campaignId}/turn_${Date.now()}.png`
-            const { data: uploadData } = await supabase.storage.from('campaign-assets').upload(fileName, blob, { 
-              contentType: result.imageMimeType,
-              upsert: true
+            console.log(`📤 Tentative d'upload via Proxy : ${fileName}`)
+            
+            const uploadRes = await adminProxy('STORAGE_UPLOAD', 'campaign-assets', {
+              data: {
+                bucket: 'campaign-assets',
+                path: fileName,
+                base64: result.imageBase64,
+                contentType: result.imageMimeType
+              }
             })
 
-            if (uploadData?.path) {
-              const { data: urlData } = supabase.storage.from('campaign-assets').getPublicUrl(uploadData.path)
-              if (urlData?.publicUrl) {
-                await adminProxy('UPDATE', 'campaigns', {
-                  id: targetId,
-                  data: {
-                    scene_image: urlData.publicUrl,
-                    scene_description: result.narration.substring(0, 500),
-                    is_generating: false
-                  }
-                })
+            if (uploadRes.error) {
+              console.error("❌ Erreur upload via Proxy :", uploadRes.error)
+              await adminProxy('UPDATE', 'campaigns', { id: targetId, data: { is_generating: false } })
+              return
+            }
 
-                sendDmMessage(`[SYNC_SCENE:${JSON.stringify({
-                  ...fullStateUpdate,
-                  image: urlData.publicUrl,
-                  caption: result.caption,
-                })}]`, 'global')
-              }
+            const { data: urlData } = supabase.storage.from('campaign-assets').getPublicUrl(fileName)
+            if (urlData?.publicUrl) {
+              console.log(`🌍 Image uploadée et accessible via URL publique : ${urlData.publicUrl}`)
+              await adminProxy('UPDATE', 'campaigns', {
+                id: targetId,
+                data: {
+                  scene_image: urlData.publicUrl,
+                  scene_description: result.narration.substring(0, 500),
+                  is_generating: false
+                }
+              })
+
+              sendDmMessage(`[SYNC_SCENE:${JSON.stringify({
+                ...fullStateUpdate,
+                image: urlData.publicUrl,
+                caption: result.caption,
+              })}]`, 'global')
             }
           } catch (uploadError) {
+            console.error("❌ Erreur critique upload :", uploadError)
             await adminProxy('UPDATE', 'campaigns', { id: targetId, data: { is_generating: false } })
           }
         } else {

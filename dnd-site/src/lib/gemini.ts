@@ -602,11 +602,59 @@ Ta réponse (concise, 1-2 paragraphes max) :`
 // IMAGE GENERATION: Scene illustration
 // ============================================================
 
+/**
+ * Transforms a narration into a safe, visually descriptive prompt for image generation.
+ * This helps bypass safety filters that might be triggered by violent D&D narrations.
+ */
+async function refineImagePrompt(
+  narration: string,
+  context: CampaignContext
+): Promise<string> {
+  if (!ai) return narration
+
+  const charDetails = context.characters.map(c => `${c.name} (${c.race} ${c.class})`).join(', ')
+  
+  const prompt = `You are a prompt engineer for AI image generation. 
+Your goal is to transform a dark or violent RPG narration into a SAFE, cinematic, and visually descriptive prompt.
+
+RULES:
+1. REMOVE all graphic violence, gore, blood, or decapitation.
+2. REPLACE "killing", "slashing", or "murder" with "epic confrontation", "dynamic combat pose", "dramatic action", or "intense standoff".
+3. FOCUS on: Environment (${context.currentLocation}), Lighting (${context.currentTimeOfDay}), Atmosphere, and Composition.
+4. INCLUDE characters: ${charDetails}.
+5. Style: Dark fantasy anime illustration, high detail.
+6. Output ONLY the safe English prompt.
+
+ORIGINAL NARRATION:
+${narration}
+
+SAFE VISUAL PROMPT:
+`
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash-lite",
+      contents: prompt,
+      config: { temperature: 0.7, maxOutputTokens: 200 }
+    })
+    const refined = (response.text || '').trim()
+    console.log("🎨 Prompt original :", narration.substring(0, 50) + "...")
+    console.log("✨ Prompt raffiné :", refined)
+    return refined || narration
+  } catch (e) {
+    console.warn("⚠️ Échec du raffinage du prompt, utilisation du brut.", e)
+    return narration
+  }
+}
+
 export async function generateSceneImage(
   sceneDescription: string,
   context: CampaignContext
 ): Promise<{ base64: string; mimeType: string; caption?: string } | null> {
   if (!ai) return null
+
+  // 1. Raffiner le prompt pour éviter les blocages de sécurité
+  const safePrompt = await refineImagePrompt(sceneDescription, context)
 
   const charDescriptions = context.characters.map(c => {
     const desc = c.description || `${c.race} ${c.class}`
@@ -617,11 +665,11 @@ export async function generateSceneImage(
 
 Setting: ${context.universe}, at ${context.currentLocation}, during ${context.currentTimeOfDay}.
 
-Scene: ${sceneDescription}
+Scene Description: ${safePrompt}
 
 Characters present: ${charDescriptions}
 
-Style: Dark fantasy anime illustration, dramatic lighting, high detail, no text or UI elements. The image should feel like a key frame from an anime or a high-quality RPG illustration book.
+Style: Dark fantasy anime illustration, dramatic lighting, high detail, no text or UI elements. Key frame from a high-quality RPG illustration book.
 
 IMPORTANT: Provide a very short, poetic caption (1 sentence maximum) in French that captures the essence of this scene first, then generate the image. Do NOT put text ON the image.`
 
@@ -632,32 +680,95 @@ IMPORTANT: Provide a very short, poetic caption (1 sentence maximum) in French t
   while (attempts < maxAttempts) {
     const currentModel = models[attempts % models.length]
     try {
+      const config: any = {
+        imageConfig: {
+          aspectRatio: "16:9"
+        }
+      }
+
+      console.log(`🎨 Tentative de génération d'image avec ${currentModel}...`)
       const response = await ai.models.generateContent({
         model: currentModel,
         contents: imagePrompt,
-        config: {
-          responseModalities: [Modality.TEXT, Modality.IMAGE],
-        }
+        config
       })
 
-      // Extract image and text from response
+      console.log(`📥 Réponse brute reçue de ${currentModel}:`, response)
+      
+      if (response.candidates && response.candidates.length > 0) {
+        const cand = response.candidates[0]
+        console.log("🔍 Clés du premier candidat :", Object.keys(cand))
+        if (cand.content) {
+          console.log("🔍 Clés du content :", Object.keys(cand.content))
+          if (cand.content.parts) {
+            console.log(`🧩 Nombre de parties : ${cand.content.parts.length}`)
+          }
+        }
+        if (cand.finishReason) {
+          console.log(`🏁 Finish Reason : ${cand.finishReason}`)
+          if (cand.finishReason === 'IMAGE_SAFETY' || cand.finishReason === 'SAFETY') {
+            console.error("🚫 Blocage de sécurité (SAFETY) détecté par le modèle d'image.")
+            // On pourrait retenter ici avec un prompt encore plus neutre si besoin
+          }
+        }
+      }
+
+      // Essayer d'extraire via candidates (Gemini standard)
       const candidates = response.candidates
       if (candidates && candidates[0]?.content?.parts) {
         let base64 = ''
         let mimeType = ''
         let caption = ''
-        for (const part of candidates[0].content.parts) {
-          if (part.inlineData) {
-            base64 = part.inlineData.data as string
-            mimeType = (part.inlineData.mimeType as string) || 'image/png'
-          } else if (part.text) {
-            caption = part.text.trim()
+        for (const [idx, part] of candidates[0].content.parts.entries()) {
+          const p = part as any
+          if (p.inlineData) {
+            console.log(`🖼️ Partie ${idx}: Image trouvée via inlineData (${p.inlineData.mimeType})`)
+            base64 = p.inlineData.data
+            mimeType = p.inlineData.mimeType || 'image/png'
+          } else if (p.text) {
+            console.log(`📝 Partie ${idx}: Texte trouvé ("${p.text.substring(0, 50)}...")`)
+            caption = p.text.trim()
+          } else if (p.videoMetadata) {
+            console.log(`🎥 Partie ${idx}: Vidéo trouvée (non géré)`)
+          } else {
+            console.log(`❓ Partie ${idx}: Type inconnu`, Object.keys(p))
           }
         }
         if (base64) return { base64, mimeType, caption }
       }
+
+      // Essayer d'extraire via generatedImages (nouveaux modèles Imagen/Gemini)
+      const genImgs = (response as any).generatedImages
+      if (genImgs && genImgs.length > 0) {
+        console.log(`🖼️ Image trouvée via generatedImages (${genImgs.length} images)`)
+        const img = genImgs[0]
+        if (img.image?.data) {
+          return { 
+            base64: img.image.data, 
+            mimeType: img.image.mimeType || 'image/png',
+            caption: img.caption || ''
+          }
+        }
+      }
+
+      // Essayer d'extraire via un champ 'images' direct (certaines versions d'API)
+      const directImgs = (response as any).images
+      if (directImgs && directImgs.length > 0) {
+        console.log(`🖼️ Image trouvée via champ direct 'images'`)
+        const img = directImgs[0]
+        if (img.url || img.data) {
+          return {
+            base64: img.data || '',
+            mimeType: img.mimeType || 'image/png',
+            caption: img.caption || ''
+          }
+        }
+      }
+
+      console.warn("⚠️ Aucune image trouvée dans la réponse (ni candidates.parts, ni generatedImages, ni images).")
       return null
     } catch (error: any) {
+      console.error(`❌ Erreur image (${currentModel}):`, error)
       attempts++
       const status = error?.status || error?.code
       const msg = (error?.message || '').toLowerCase()
@@ -684,6 +795,7 @@ export async function resolveTurnWithImage(
   generateImage: boolean = true
 ): Promise<DmResponse> {
   // First, get the narration
+  console.log("🧩 Résolution de la narration en cours...")
   const result = await resolveTurn(actions, context)
 
   // Try to generate an image only if narration was successful
@@ -694,10 +806,16 @@ export async function resolveTurnWithImage(
         result.imageBase64 = image.base64
         result.imageMimeType = image.mimeType
         result.caption = image.caption
+      } else {
+        console.warn("⚠️ generateSceneImage a retourné null (échec de génération).")
       }
     } catch (e) {
-      console.warn('⚠️ Image generation skipped:', e)
+      console.warn('⚠️ Erreur lors de la génération d\'image:', e)
     }
+  } else {
+    if (!generateImage) console.log("ℹ️ Génération d'image sautée (désactivée par l'option generateImage).")
+    else if (!result.narration) console.log("ℹ️ Génération d'image sautée (narration vide).")
+    else if (result.isError) console.log("ℹ️ Génération d'image sautée (erreur dans resolveTurn).")
   }
 
   return result

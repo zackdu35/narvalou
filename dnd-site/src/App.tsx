@@ -579,7 +579,7 @@ const CampaignView = ({ language, setLanguage, mode }: { language: 'FR' | 'EN' |
                   className="scene-main-img"
                   style={{ opacity: data.currentScene.isGenerating ? 0.3 : 1 }} 
                   onError={(e) => { 
-                    console.log("Image load error, using placeholder");
+                    console.error("🖼️ Image load error for URL:", e.currentTarget.src);
                     e.currentTarget.src = '/assets/ui/scene_placeholder.png' 
                   }} 
                 />

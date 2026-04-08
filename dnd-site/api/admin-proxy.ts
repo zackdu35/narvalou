@@ -27,6 +27,10 @@ export default async function handler(req: any, res: any) {
       result = await adminClient.from(table).insert(data).select()
     } else if (method === 'DELETE') {
       result = await adminClient.from(table).delete().match(match || { id })
+    } else if (method === 'STORAGE_UPLOAD') {
+      const { bucket, path, base64, contentType } = data
+      const buffer = Buffer.from(base64, 'base64')
+      result = await adminClient.storage.from(bucket).upload(path, buffer, { contentType, upsert: true })
     } else {
       // UPDATE
       let query: any = adminClient.from(table).update(data, { count: 'exact' }).eq('id', id)
