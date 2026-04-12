@@ -117,7 +117,9 @@ function CharacterSheetModal({ char, onClose }) {
             </div>
             <div>
               <h2 className="sheet-name">{char.name}</h2>
-              <p className="sheet-subtitle">{char.race} · {char.class} · Niv.{char.level || 1}</p>
+              <p className="sheet-subtitle">
+                {char.gender} {char.race} · {char.class} {char.age ? `· ${char.age} ans` : ''} · Niv.{char.level || 1}
+              </p>
               <p className="sheet-bg">{char.background}</p>
             </div>
           </div>
@@ -378,7 +380,8 @@ export default function LiveSession({ campaign, character, session, onExit }) {
       imageGenInProgress.current = true
       aiService.generateSceneImage(
         response.content.substring(0, 200),
-        response.location || campaign.name
+        response.location || campaign.name,
+        groupMembers
       ).then(imageUrl => {
         if (imageUrl) setSceneImage(imageUrl)
       }).catch(err => {

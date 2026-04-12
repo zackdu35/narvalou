@@ -106,8 +106,8 @@ export const aiService = {
 
   async generateResponse(campaign, character, history, userPrompt, allCharacters = []) {
     const groupContext = allCharacters.length > 0
-      ? `Groupe de héros :\n${allCharacters.map(c => `- ${c.name} (${c.race} ${c.class}, PV: ${c.hp_current}/${c.hp_max}, Niveau ${c.level || 1}, Stats: ${JSON.stringify(c.stats || {})})`).join('\n')}`
-      : `Le personnage du joueur est ${character.name} (un ${character.race} ${character.class}, PV: ${character.hp_current}/${character.hp_max}).`;
+      ? `Groupe de héros :\n${allCharacters.map(c => `- ${c.name} (${c.gender || ''} ${c.race} ${c.class}, ${c.age ? c.age + ' ans, ' : ''}PV: ${c.hp_current}/${c.hp_max}, Niveau ${c.level || 1}, Apparence: ${c.appearance || 'N/A'}, Stats: ${JSON.stringify(c.stats || {})})`).join('\n')}`
+      : `Le personnage du joueur est ${character.name} (un ${character.gender || ''} ${character.race} ${character.class}, ${character.age ? character.age + ' ans, ' : ''}PV: ${character.hp_current}/${character.hp_max}, Apparence: ${character.appearance || 'N/A'}).`;
 
     const systemPrompt = `Tu es le Maître du Jeu IA (MJ) de l'univers "${campaign.name}". 
     ${groupContext}
@@ -232,8 +232,20 @@ export const aiService = {
     }
   },
 
-  async generateSceneImage(narrativeContext, worldDVC) {
-    const scenePrompt = `${worldDVC || 'dark fantasy epic scene'}, ${narrativeContext}, cinematic wide angle, dramatic lighting, highly detailed environment`;
+  async generateSceneImage(narrativeContext, worldDVC, characters = []) {
+    const charDesc = characters.length > 0
+      ? characters.map(c => {
+          const details = [
+            c.gender,
+            c.age ? `${c.age} ans` : null,
+            c.race,
+            c.class,
+            c.appearance
+          ].filter(Boolean).join(' ');
+          return `${c.name} (${details})`;
+        }).join(', ')
+      : '';
+    const scenePrompt = `${worldDVC || 'dark fantasy epic scene'}, ${narrativeContext}, ${charDesc ? `Characters present: ${charDesc}.` : ''} cinematic wide angle, dramatic lighting, highly detailed environment`;
     return this.generateImage(scenePrompt);
   }
 };
