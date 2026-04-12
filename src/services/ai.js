@@ -74,5 +74,23 @@ export const aiService = {
       "quest": { "title": "...", "description": "..." }
     }`;
     return generateAIContent(systemPrompt, seed);
+  },
+
+  async suggestCharacterOptions(worldContext) {
+    const systemPrompt = `Tu es l'Ancien Oracle de Narvalou. Basé sur l'univers suivant (Archetype + Piliers), propose 3 concepts de personnages (Race + Classe + Background) uniques et cohérents.
+    Réponds EXCLUSIVEMENT en JSON :
+    [
+      { "name": "Nom suggéré", "race": "Race", "class": "Classe", "background": "Origine", "description": "Pourquoi ce perso dans ce monde ?", "stats": { "str": 10, "dex": 10, "con": 10, "int": 10, "wis": 10, "cha": 10 } }
+    ]`;
+    return generateAIContent(systemPrompt, `CONTEXTE DU MONDE : ${JSON.stringify(worldContext)}`);
+  },
+
+  async generateCharacterDVC(characterData, worldStyle) {
+    const systemPrompt = `Tu es l'Architecte Visuel. Génère une Description Visuelle Courte (DVC) pour ce personnage de D&D.
+    La DVC doit être dense, évocatrice et respecter le style du monde. 
+    STYLE DU MONDE : ${worldStyle}
+    PERSONNAGE : ${JSON.stringify(characterData)}
+    Réponds EXCLUSIVEMENT en JSON : { "dvc": "La description visuelle en 2-3 phrases." }`;
+    return generateAIContent(systemPrompt, `Génère la DVC pour ${characterData.name}`);
   }
 };

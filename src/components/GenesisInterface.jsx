@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import TechnicalLog from './TechnicalLog'
 import LoreCard from './LoreCard'
 import { aiService } from '../services/ai'
+import { db } from '../services/supabase'
+
 
 export default function GenesisInterface({ isOpen, onClose, onStartAdventure }) {
   const [step, setStep] = useState('input')
@@ -15,6 +17,7 @@ export default function GenesisInterface({ isOpen, onClose, onStartAdventure }) 
   const [currentPillarIndex, setCurrentPillarIndex] = useState(0)
   const [hookData, setHookData] = useState(null)
   const [error, setError] = useState(null)
+  const [createdCampaignId, setCreatedCampaignId] = useState(null)
   
   const logEndRef = useRef(null)
 
@@ -33,6 +36,7 @@ export default function GenesisInterface({ isOpen, onClose, onStartAdventure }) 
       setCurrentPillarIndex(0)
       setHookData(null)
       setError(null)
+      setCreatedCampaignId(null)
     }
   }, [isOpen])
 
@@ -97,13 +101,55 @@ export default function GenesisInterface({ isOpen, onClose, onStartAdventure }) 
     }
   }
 
-  const handleFinishHook = () => {
+  const handleFinishHook = async () => {
     setStep('visualizing')
     addLog('Synthèse visuelle de l\'univers...', 'gen')
-    setTimeout(() => {
+    
+    try {
+      addLog('Archivage du monde dans les registres Supabase...', 'process')
+      
+      // 1. Créer la campagne avec le propriétaire
+      const { data: { user } } = await db.supabase.auth.getUser()
+      const campaign = await db.campaigns.create(
+        selectedArchetype.title, 
+        `Un monde basé sur : ${prompt}`,
+        user.id
+      )
+      setCreatedCampaignId(campaign.id)
+      
+      // 2. Créer le monde (on pourra l'étendre avec plus de fonctions dans supabase.js)
+      const { data: world, error: worldError } = await db.supabase
+        .from('worlds')
+        .insert([{
+          campaign_id: campaign.id,
+          archetype: selectedArchetype.title,
+          lore_summary: selectedArchetype.description,
+          style_guide_dvc: `Style optimisé pour ${selectedArchetype.title}. Atmosphère épique.`
+        }])
+        .select()
+        .single()
+      
+      if (worldError) throw worldError
+
+      // 3. Créer les régions
+      const regionsPromises = pillars.map(p => 
+        db.supabase.from('regions').insert([{
+          world_id: world.id,
+          name: p.title,
+          description: p.description
+        }])
+      )
+      await Promise.all(regionsPromises)
+
+      addLog('Univers cristallisé dans la base de données.', 'info')
       setStep('complete')
       addLog('Genèse terminée avec succès.', 'info')
-    }, 2500)
+    } catch (err) {
+      console.error(err)
+      addLog('Erreur lors de la sauvegarde de l\'univers.', 'error')
+      setError("La sauvegarde a échoué, mais vous pouvez continuer en mode éphémère.")
+      setStep('complete')
+    }
   }
 
   return (
@@ -269,7 +315,7 @@ export default function GenesisInterface({ isOpen, onClose, onStartAdventure }) 
                     <h2 className="text-6xl text-gold font-serif">L'Univers est Né</h2>
                     <p className="text-neutral-500 tracking-[0.2em] uppercase">Votre récit commence maintenant.</p>
                     <button 
-                      onClick={() => onStartAdventure({ archetype: selectedArchetype })}
+                      onClick={() => onStartAdventure({ archetype: selectedArchetype, campaignId: createdCampaignId, pillars: pillars, prompt: prompt })}
                       className="btn-architect"
                     >
                       COMMENCER L'AVENTURE
