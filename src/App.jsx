@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Play, Sparkles, LogOut, User as UserIcon } from 'lucide-react'
+import { Plus, Play, Sparkles, LogOut, User as UserIcon, Orbit } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import GenesisInterface from './components/GenesisInterface'
 import CharacterCreation from './components/CharacterCreation'
@@ -379,11 +379,11 @@ function App() {
                   <h2 className="text-[10px] text-gold uppercase tracking-[0.4em] mb-12 opacity-50">Nouvelle Création</h2>
                   <div className="grid justify-center w-full">
                     <motion.div 
-                      className="campaign-card create-card h-[400px]"
+                      className="campaign-card create-card"
                       onClick={() => setIsGenesisOpen(true)}
                       whileHover={{ scale: 1.02 }}
                     >
-                      <Sparkles size={48} className="text-gold" />
+                      <Orbit size={56} strokeWidth={1} className="text-gold mb-6" />
                       <h3 className="serif text-2xl">Univers Sur-Mesure</h3>
                       <p className="text-sm opacity-60 leading-relaxed max-w-[200px] mx-auto">Collaborez avec l'Architecte pour créer un monde unique à partir de vos idées.</p>
                     </motion.div>
@@ -401,14 +401,10 @@ function App() {
                             setLoading(true);
                             // On vérifie le nom de la colonne admin_id vs owner_id
                             const newCamp = await db.campaigns.create(world.title, world.description, session.id, { 
-                              status: 'lobby'
+                              status: 'lobby',
+                              image: world.image
                             });
                             
-                            // Si la colonne image existe on l'update (optionnel pour éviter le crash si non présente)
-                            try {
-                              await supabase.from('campaigns').update({ image: world.image }).eq('id', newCamp.id);
-                            } catch (e) { console.warn("La colonne 'image' n'existe probablement pas encore.") }
-
                             setCurrentCampaignId(newCamp.id);
                             setCurrentWorldContext({
                               archetype: { title: world.title, style_guide_dvc: `Style "${world.type}"` },
@@ -483,7 +479,7 @@ function App() {
                 </div>
             </div>
 
-            <div className="flex flex-col items-center">
+            <div className="campaign-list-container">
               {campaigns.length === 0 ? (
                 <div className="w-full max-w-2xl py-32 text-center border border-dashed border-white/5 rounded-lg">
                    <p className="text-white/20 uppercase tracking-widest text-xs mb-6">Aucun monde n'a été découvert dans ce plan.</p>

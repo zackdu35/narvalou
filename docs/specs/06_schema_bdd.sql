@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS public.campaigns (
     description TEXT,
     created_at TIMESTAMPTZ DEFAULT now(),
     status TEXT DEFAULT 'genesis', -- 'genesis', 'lobby', 'active', 'finished'
+    image TEXT, -- Image de couverture de la campagne
     admin_id UUID -- Optionnel: pour lier à un créateur spécifique
 );
 

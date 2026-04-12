@@ -95,20 +95,32 @@ body::before {
 /* Cards de Campagne */
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  gap: 4rem;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 2.5rem;
+  padding-bottom: 10rem;
+  width: 100%;
+}
+
+.campaign-list-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 2.5rem;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
   padding-bottom: 10rem;
 }
 
 .campaign-card {
   position: relative;
-  height: 320px;
+  height: 420px;
+  width: 100%;
   background: #111;
-  border-radius: 8px;
+  border-radius: 12px;
   overflow: hidden;
   cursor: pointer;
   transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
@@ -177,7 +189,7 @@ body::before {
 .card-overlay {
   position: absolute;
   inset: 0;
-  padding: 2rem 2.5rem;
+  padding: 2.5rem 2rem;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -187,7 +199,7 @@ body::before {
 
 .card-overlay h3 {
   font-family: var(--font-serif);
-  font-size: 2.2rem;
+  font-size: 1.8rem;
   font-weight: 300;
   color: #fff;
   margin-bottom: 0.2rem;
@@ -197,9 +209,10 @@ body::before {
 .card-overlay p {
   font-size: 0.8rem;
   color: rgba(255, 255, 255, 0.4);
-  max-width: 70%;
+  max-width: 90%;
   line-height: 1.5;
   margin-bottom: 1.5rem;
+  font-weight: 300;
 }
 
 .btn-play-premium {
@@ -227,7 +240,7 @@ body::before {
 
 /* Création Modal / Card */
 .create-card {
-  height: 500px;
+  height: 400px;
   border: 2px dashed rgba(212, 175, 55, 0.2);
   display: flex;
   flex-direction: column;
@@ -637,29 +650,8 @@ body::before {
 }
 
 /* Headers de sous-pages */
-.subview-header {
-  text-align: center;
-  margin-bottom: 8rem;
-  position: relative;
-}
+/* Headers de sous-pages consolidés dans la section Premium */
 
-.subview-header h1 {
-  font-family: var(--font-serif);
-  font-size: 8rem;
-  color: #fff;
-  letter-spacing: -0.05em;
-  font-weight: 200;
-  margin-bottom: 0.5rem;
-  line-height: 0.9;
-}
-
-.subview-header .subtitle {
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 1em;
-  color: var(--gold);
-  opacity: 0.6;
-}
 
 .auth-header {
   text-align: center;

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Sparkles, User, Sword, Book, Shield, Zap, RefreshCw } from 'lucide-react'
+import { X, User, Sword, Book, Shield, Zap, RefreshCw, Orbit, Infinity as InfinityIcon } from 'lucide-react'
 import { aiService } from '../services/ai'
 import { db } from '../services/supabase'
 
@@ -139,7 +139,7 @@ export default function CharacterCreation({ isOpen, onClose, worldContext, onCom
                   transition={{ duration: 3, repeat: Infinity }}
                 >
                   <div className="w-1 h-1 bg-gold rounded-full shadow-[0_0_30px_10px_rgba(212,175,55,0.4)]" />
-                  <Sparkles size={40} strokeWidth={0.5} className="text-gold absolute" />
+                  <Orbit size={40} strokeWidth={0.5} className="text-gold absolute" />
                 </motion.div>
                 
                 {/* AMBIENT GLOW */}
@@ -331,7 +331,7 @@ export default function CharacterCreation({ isOpen, onClose, worldContext, onCom
                   disabled={Object.values(customData.stats).reduce((a,b)=>a+b,0) > 72 || !customData.name}
                   className="btn-invoke-hero"
                 >
-                  <Sparkles size={18} className="mr-3" />
+                  <InfinityIcon size={18} className="mr-3" />
                   Invoquer l'Apparence
                 </button>
               </div>

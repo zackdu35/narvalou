@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Sparkles, Mail, Lock, AlertCircle, ArrowRight } from 'lucide-react'
+import { Orbit, Mail, Lock, AlertCircle, ArrowRight } from 'lucide-react'
 import { db } from '../services/supabase'
 
 export default function Auth({ onSession }) {
@@ -45,9 +45,9 @@ export default function Auth({ onSession }) {
             transition={{ duration: 4, repeat: Infinity }}
             style={{ marginBottom: '1.5rem', display: 'inline-block' }}
           >
-            <Sparkles size={48} className="text-gold" />
+            <Orbit size={48} strokeWidth={1} className="text-gold" />
           </motion.div>
-          <h1>Aventures</h1>
+          <h1>L'Oracle</h1>
           <p className="text-gold uppercase tracking-[0.5em] font-bold" style={{ fontSize: '9px', opacity: 0.5 }}>Maître du Jeu IA</p>
         </div>
 
