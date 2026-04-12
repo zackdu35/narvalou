@@ -4,10 +4,17 @@ import { motion, AnimatePresence } from 'framer-motion'
 import GenesisInterface from './components/GenesisInterface'
 import CharacterCreation from './components/CharacterCreation'
 import Auth from './components/Auth'
-import { db } from './services/supabase'
+import { db, supabase } from './services/supabase'
+import { aiService } from './services/ai'
 
 
-function CampaignCard({ title, description, image, type, onPlay, isJoined, btnLabel }) {
+function CampaignCard({ id, title, description, image, type, onPlay, isJoined, btnLabel, showCode }) {
+  const copyCode = (e) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(id);
+    alert("Code de campagne copié ! Partagez-le avec vos compagnons.");
+  };
+
   return (
     <motion.div 
       className="campaign-card"
@@ -15,18 +22,62 @@ function CampaignCard({ title, description, image, type, onPlay, isJoined, btnLa
     >
       <img src={image || "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&q=80&w=1600"} alt={title} />
       <div className="card-overlay">
-        <span className="text-[10px] text-gold uppercase tracking-[0.3em] font-bold mb-2">{type}</span>
+        <div className="card-header-actions">
+          <span className="text-[10px] text-gold uppercase tracking-[0.3em] font-bold">{type}</span>
+          {showCode && (
+            <button 
+              onClick={copyCode}
+              className="btn-copy-code-premium"
+            >
+              <div className="copy-icon-pulse" />
+              COPIER LE CODE
+            </button>
+          )}
+        </div>
         <h3>{title}</h3>
         <p>{description}</p>
-        <button onClick={onPlay} className="btn-play" style={{ alignSelf: 'flex-end' }}>
+        <button onClick={onPlay} className="btn-play-premium">
           {btnLabel || (isJoined ? 'REPRENDRE' : 'REJOINDRE')}
         </button>
       </div>
     </motion.div>
-  )
+  );
 }
 
 function GameInterface({ campaign, character, onExit }) {
+  const [messages, setMessages] = useState([
+    { role: 'mj', content: `Le destin vous a ramené ici, ${character?.name}. Que souhaitez-vous accomplir dans ce monde de "${campaign.name}" ?`, sender: 'Architecte MJ' }
+  ]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSend = async () => {
+    if (!input.trim() || loading) return;
+    
+    const userMsg = input;
+    setInput('');
+    setMessages(prev => [...prev, { role: 'user', content: userMsg, sender: character.name }]);
+    setLoading(true);
+
+    try {
+      const response = await aiService.generateResponse(campaign, character, messages, userMsg);
+      setMessages(prev => [...prev, { 
+        role: 'mj', 
+        content: response.content, 
+        sender: response.sender || 'Architecte MJ' 
+      }]);
+    } catch (err) {
+      console.error(err);
+      setMessages(prev => [...prev, { 
+        role: 'mj', 
+        content: "L'Oracle est momentanément perturbé... (Erreur IA)", 
+        sender: 'Système' 
+      }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0 }}
@@ -49,8 +100,8 @@ function GameInterface({ campaign, character, onExit }) {
            <div className="p-6 space-y-8">
               <div className="space-y-4">
                  <h4 className="text-[10px] text-gold uppercase tracking-widest">État du Héros</h4>
-                 <div className="flex gap-4 items-center p-4 bg-white/5 rounded-lg border border-white/5">
-                    <div className="w-12 h-12 rounded-full bg-neutral-800 border border-gold/30 flex items-center justify-center text-gold">
+                 <div className="flex gap-4 items-center p-4 bg-white/10 rounded-lg border border-gold/20">
+                    <div className="w-12 h-12 rounded-full bg-neutral-800 border border-gold/30 flex items-center justify-center text-gold shadow-[0_0_15px_rgba(212,175,55,0.2)]">
                        <UserIcon size={20} />
                     </div>
                     <div className="flex-1">
@@ -71,22 +122,40 @@ function GameInterface({ campaign, character, onExit }) {
               <div className="scene-overlay" />
               <div className="scene-narration">
                  <p className="serif text-2xl leading-relaxed">
-                   L'air vibre d'une énergie ancienne. Vous vous tenez prêt pour votre prochaine action dans ce monde en expansion...
+                   {messages.filter(m => m.role === 'mj').slice(-1)[0]?.content.substring(0, 150)}...
                  </p>
               </div>
            </div>
         </main>
 
         <aside className="game-sidebar-right">
-           <div className="flex-1 overflow-y-auto p-6 space-y-4 text-sm">
-              <div className="text-gold/50 text-[10px] text-center uppercase tracking-widest py-4">Synchronisation Temporelle</div>
-              <div className="chat-msg mj">
-                 <span className="text-gold font-bold block mb-1">Architecte MJ</span>
-                 Le destin vous a ramené ici, {character?.name}. Que souhaitez-vous accomplir ?
-              </div>
+           <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              <div className="text-gold/50 text-[10px] text-center uppercase tracking-widest py-4 border-b border-white/5">Journal d'Aventure</div>
+              {messages.map((msg, i) => (
+                <div key={i} className={`chat-msg ${msg.role === 'mj' ? 'mj' : 'user'}`}>
+                   <span className="text-gold font-bold block mb-1 text-[10px] uppercase tracking-wider">{msg.sender}</span>
+                   <p className="text-sm leading-relaxed opacity-90">{msg.content}</p>
+                </div>
+              ))}
+              {loading && <div className="text-[10px] text-gold animate-pulse text-center">L'Architecte réfléchit...</div>}
            </div>
            <div className="p-4 border-t border-white/5 bg-black/40">
-              <input type="text" placeholder="Décrivez votre action..." className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-sm focus:outline-none focus:border-gold/50 transition-all" />
+              <div className="relative">
+                <input 
+                  type="text" 
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                  placeholder="Décrivez votre action..." 
+                  className="w-full bg-white/5 border border-white/10 p-4 pr-12 rounded-lg text-sm focus:outline-none focus:border-gold/50 transition-all font-light" 
+                />
+                <button 
+                  onClick={handleSend}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gold p-2 hover:scale-110 transition-transform"
+                >
+                  <Sparkles size={18} />
+                </button>
+              </div>
            </div>
         </aside>
       </div>
@@ -106,6 +175,7 @@ function App() {
   const [currentWorldContext, setCurrentWorldContext] = useState(null)
   const [currentCampaignId, setCurrentCampaignId] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [searchCode, setSearchCode] = useState('')
 
   useEffect(() => {
     checkSession()
@@ -127,7 +197,7 @@ function App() {
     try {
       const campData = await db.campaigns.list()
       setCampaigns(campData)
-      const { data: chars, error } = await db.supabase
+      const { data: chars, error } = await supabase
         .from('characters')
         .select('*')
         .eq('user_id', session.id)
@@ -162,15 +232,49 @@ function App() {
         setCurrentCampaignId(camp.id)
         const worldData = await db.campaigns.get(camp.id)
         setCurrentWorldContext({
-          archetype: { title: worldData.worlds[0]?.archetype, style_guide_dvc: worldData.worlds[0]?.style_guide_dvc },
+          archetype: { 
+            title: worldData.worlds?.[0]?.archetype || 'Classic Fantasy', 
+            style_guide_dvc: worldData.worlds?.[0]?.style_guide_dvc || 'Style épique D&D' 
+          },
           campaignId: camp.id
         })
         setIsCharacterCreationOpen(true)
       }
     } catch (err) {
       console.error(err)
+      alert("Erreur lors de l'accès à la campagne. Vérifiez si elle existe toujours.")
     }
   }
+
+  const handleJoinByCode = async () => {
+    if (!searchCode.trim()) return;
+    try {
+      const camp = await db.campaigns.get(searchCode.trim());
+      if (camp) {
+        setLoading(true);
+        // On récupère le monde associé pour avoir le contexte AI
+        const { data: worldData } = await db.supabase
+          .from('worlds')
+          .select('*, archetypes(*)')
+          .eq('campaign_id', camp.id)
+          .maybeSingle();
+          
+        setCurrentWorldContext(worldData);
+        setCurrentCampaignId(camp.id);
+        
+        // On vérifie si l'utilisateur a déjà un perso
+        const char = userCharacters.find(c => c.campaign_id === camp.id);
+        if (char) {
+          handleStartAdventure(camp, char);
+        } else {
+          setIsCharacterCreationOpen(true);
+        }
+        setLoading(false);
+      }
+    } catch (err) {
+      alert("Aucune campagne trouvée avec ce code.");
+    }
+  };
 
   const handleSignOut = async () => {
     await db.auth.signOut()
@@ -224,7 +328,7 @@ function App() {
                     <Sparkles size={40} />
                   </div>
                   <h2>Architecte</h2>
-                  <p>Invoquez les lois de la Genèse pour forger un monde unique issu de vos songes.</p>
+                  <p>Invoquez les lois de la Genèse pour forger un monde unique. Vous êtes le Maître du Jeu.</p>
                   <div className="portal-btn">Créer une Campagne</div>
                 </div>
               </motion.div>
@@ -243,8 +347,8 @@ function App() {
                     <Play size={40} fill="currentColor" />
                   </div>
                   <h2>Héros</h2>
-                   <p>Incarnez une légende, traversez les royaumes et scellez votre destin dans le récit.</p>
-                   <div className="portal-btn">Rejoindre une Campagne</div>
+                   <p>Rejoignez un monde existant, créez votre légende et vivez l'aventure en tant que joueur.</p>
+                   <div className="portal-btn">Rejoindre l'Aventure</div>
                 </div>
               </motion.div>
             </div>
@@ -270,9 +374,10 @@ function App() {
                <p className="subtitle text-gold">Invoquez votre univers</p>
             </div>
 
-            <div className="space-y-24">
+            <div className="space-y-32 mt-12">
                <section className="flex flex-col items-center">
-                  <div className="grid justify-center">
+                  <h2 className="text-[10px] text-gold uppercase tracking-[0.4em] mb-12 opacity-50">Nouvelle Création</h2>
+                  <div className="grid justify-center w-full">
                     <motion.div 
                       className="campaign-card create-card h-[400px]"
                       onClick={() => setIsGenesisOpen(true)}
@@ -291,14 +396,57 @@ function App() {
                         image={world.image}
                         type="Préréglage"
                         btnLabel="ÉVEILLER"
-                        onPlay={() => {
-                          // Simulation de sélection de preset
-                           handleStartAdventure({ ...world, name: world.title }, { name: "Pionnier", race: "Inconnu", class: "Explorateur", hp_current: 10, hp_max: 10 })
+                        onPlay={async () => {
+                          try {
+                            setLoading(true);
+                            // On vérifie le nom de la colonne admin_id vs owner_id
+                            const newCamp = await db.campaigns.create(world.title, world.description, session.id, { 
+                              status: 'lobby'
+                            });
+                            
+                            // Si la colonne image existe on l'update (optionnel pour éviter le crash si non présente)
+                            try {
+                              await supabase.from('campaigns').update({ image: world.image }).eq('id', newCamp.id);
+                            } catch (e) { console.warn("La colonne 'image' n'existe probablement pas encore.") }
+
+                            setCurrentCampaignId(newCamp.id);
+                            setCurrentWorldContext({
+                              archetype: { title: world.title, style_guide_dvc: `Style "${world.type}"` },
+                              campaignId: newCamp.id
+                            });
+                            setIsCharacterCreationOpen(true);
+                          } catch (err) {
+                            console.error("Erreur d'éveil :", err);
+                            alert(`Échec de l'éveil : ${err.message || "Erreur inconnue"}`);
+                          } finally {
+                            setLoading(false);
+                            loadData();
+                          }
                         }}
                       />
                     ))}
                   </div>
                </section>
+
+               {campaigns.filter(c => c.admin_id === session.id).length > 0 && (
+  <section className="flex flex-col items-center">
+     <h2 className="text-[10px] text-gold uppercase tracking-[0.4em] mb-12 opacity-50">Mes Fragments Cristallisés</h2>
+     <div className="grid justify-center w-full">
+       {campaigns.filter(c => c.admin_id === session.id).map((camp) => (
+         <CampaignCard 
+           key={camp.id}
+           id={camp.id}
+           title={camp.name}
+           description={camp.description}
+           type="Maître du Monde"
+           showCode={true}
+           btnLabel="GÉRER"
+           onPlay={() => handleCampaignClick(camp)}
+         />
+       ))}
+     </div>
+  </section>
+)}
             </div>
           </motion.div>
         )}
@@ -316,20 +464,41 @@ function App() {
                <button onClick={() => setView('lobby')} className="btn-back-premium">← Retour</button>
                <h1>Bibliothèque</h1>
                <p className="subtitle text-gold">Mondes Éveillés</p>
+               
+               <div className="premium-search-container">
+                  <div className="search-glow" />
+                  <input 
+                   type="text" 
+                   placeholder="CODE DE FRAGMENT..."
+                   value={searchCode}
+                   onChange={(e) => setSearchCode(e.target.value)}
+                   className="premium-search-input"
+                  />
+                  <button 
+                   onClick={handleJoinByCode}
+                   className="premium-search-btn"
+                  >
+                    Chercher
+                  </button>
+                </div>
             </div>
 
             <div className="flex flex-col items-center">
               {campaigns.length === 0 ? (
-                <div className="col-span-full py-32 text-center border border-dashed border-white/5 rounded-lg">
-                   <p className="text-white/20 uppercase tracking-widest text-xs">Aucun monde n'a encore été créé dans ce plan.</p>
+                <div className="w-full max-w-2xl py-32 text-center border border-dashed border-white/5 rounded-lg">
+                   <p className="text-white/20 uppercase tracking-widest text-xs mb-6">Aucun monde n'a été découvert dans ce plan.</p>
+                   <button onClick={() => setView('create')} className="btn-mini primary">Invoquer un monde</button>
                 </div>
               ) : (
                 campaigns.map((camp) => (
                   <CampaignCard 
                     key={camp.id}
+                    id={camp.id}
                     title={camp.name}
                     description={camp.description}
-                    type={camp.owner_id === session.id ? "Maître du Monde" : "Aventure"}
+                    image={camp.image}
+                    type={camp.admin_id === session.id ? "Maître du Monde" : "Aventure"}
+                    showCode={camp.admin_id === session.id}
                     isJoined={userCharacters.some(c => c.campaign_id === camp.id)}
                     onPlay={() => handleCampaignClick(camp)}
                   />

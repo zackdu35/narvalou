@@ -92,5 +92,16 @@ export const aiService = {
     PERSONNAGE : ${JSON.stringify(characterData)}
     Réponds EXCLUSIVEMENT en JSON : { "dvc": "La description visuelle en 2-3 phrases." }`;
     return generateAIContent(systemPrompt, `Génère la DVC pour ${characterData.name}`);
+  },
+  
+  async generateResponse(campaign, character, history, userPrompt) {
+    const systemPrompt = `Tu es le Maître du Jeu IA (MJ) de l'univers "${campaign.name}". 
+    Le personnage du joueur est ${character.name} (un ${character.race} ${character.class}).
+    Historique récent : ${JSON.stringify(history.slice(-5))}
+    Réponds de manière immersive, cinématique et courte (maximum 4 phrases). 
+    Fais avancer l'intrigue ou réagis à l'action du joueur.
+    Réponds EXCLUSIVEMENT en JSON sous ce format :
+    { "content": "Ta réponse immersive", "sender": "Architecte MJ" }`;
+    return generateAIContent(systemPrompt, userPrompt);
   }
 };

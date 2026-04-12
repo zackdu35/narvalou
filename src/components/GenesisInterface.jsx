@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import TechnicalLog from './TechnicalLog'
 import LoreCard from './LoreCard'
 import { aiService } from '../services/ai'
-import { db } from '../services/supabase'
+import { db, supabase } from '../services/supabase'
 
 
 export default function GenesisInterface({ isOpen, onClose, onStartAdventure }) {
@@ -109,7 +109,7 @@ export default function GenesisInterface({ isOpen, onClose, onStartAdventure }) 
       addLog('Archivage du monde dans les registres Supabase...', 'process')
       
       // 1. Créer la campagne avec le propriétaire
-      const { data: { user } } = await db.supabase.auth.getUser()
+      const { data: { user } } = await supabase.auth.getUser()
       const campaign = await db.campaigns.create(
         selectedArchetype.title, 
         `Un monde basé sur : ${prompt}`,
@@ -118,7 +118,7 @@ export default function GenesisInterface({ isOpen, onClose, onStartAdventure }) 
       setCreatedCampaignId(campaign.id)
       
       // 2. Créer le monde (on pourra l'étendre avec plus de fonctions dans supabase.js)
-      const { data: world, error: worldError } = await db.supabase
+      const { data: world, error: worldError } = await supabase
         .from('worlds')
         .insert([{
           campaign_id: campaign.id,
@@ -133,7 +133,7 @@ export default function GenesisInterface({ isOpen, onClose, onStartAdventure }) 
 
       // 3. Créer les régions
       const regionsPromises = pillars.map(p => 
-        db.supabase.from('regions').insert([{
+        supabase.from('regions').insert([{
           world_id: world.id,
           name: p.title,
           description: p.description

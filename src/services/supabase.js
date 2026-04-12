@@ -11,6 +11,7 @@ export const supabase = createClient(supabaseUrl, supabaseServiceRole)
 
 // Fonctions utilitaires pour le jeu
 export const db = {
+  supabase,
   auth: {
     signUp: async (email, password) => {
       const { data, error } = await supabase.auth.signUp({ email, password })
@@ -51,10 +52,10 @@ export const db = {
       if (error) throw error
       return data
     },
-    create: async (name, description, ownerId) => {
+    create: async (name, description, adminId, extra = {}) => {
       const { data, error } = await supabase
         .from('campaigns')
-        .insert([{ name, description, owner_id: ownerId }])
+        .insert([{ name, description, admin_id: adminId, ...extra }])
         .select()
         .single()
       if (error) throw error
