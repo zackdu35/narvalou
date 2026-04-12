@@ -60,6 +60,10 @@ CREATE TABLE IF NOT EXISTS public.characters (
     hp_current INTEGER DEFAULT 10,
     hp_max INTEGER DEFAULT 10,
     dvc TEXT, -- Description Visuelle Courte pour les images
+    portrait_url TEXT, -- URL de l'image générée
+    age TEXT,
+    gender TEXT,
+    appearance TEXT,
     is_dead BOOLEAN DEFAULT false,
     death_saves_success INTEGER DEFAULT 0,
     death_saves_failure INTEGER DEFAULT 0,

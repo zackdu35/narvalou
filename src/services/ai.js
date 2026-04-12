@@ -77,6 +77,13 @@ export const aiService = {
   },
 
   async suggestCharacterOptions(worldContext) {
+    if (import.meta.env.DEV) {
+      return [
+        { name: "Eldrin", race: "Elfe", class: "Magicien", background: "Sage", description: "Un érudit cherchant des secrets anciens.", stats: { str: 8, dex: 14, con: 12, int: 16, wis: 14, cha: 10 } },
+        { name: "Thrain", race: "Nain", class: "Guerrier", background: "Soldat", description: "Un vétéran de nombreuses batailles souterraines.", stats: { str: 16, dex: 10, con: 16, int: 8, wis: 12, cha: 10 } },
+        { name: "Lira", race: "Halfelin", class: "Rôdeur", background: "Éclaireur", description: "Une chasseresse agile connaissant tous les sentiers.", stats: { str: 10, dex: 16, con: 14, int: 10, wis: 14, cha: 8 } }
+      ];
+    }
     const systemPrompt = `Tu es l'Ancien Oracle de Narvalou. Basé sur l'univers suivant (Archetype + Piliers), propose 3 concepts de personnages (Race + Classe + Background) uniques et cohérents.
     Réponds EXCLUSIVEMENT en JSON :
     [
@@ -86,6 +93,9 @@ export const aiService = {
   },
 
   async generateCharacterDVC(characterData, worldStyle) {
+    if (import.meta.env.DEV) {
+      return { dvc: `Un fier ${characterData.race} ${characterData.class} nommé ${characterData.name}${characterData.appearance ? ', ' + characterData.appearance : ''}, prêt pour l'aventure dans un style ${worldStyle}.` };
+    }
     const systemPrompt = `Tu es l'Architecte Visuel. Génère une Description Visuelle Courte (DVC) pour ce personnage de D&D.
     La DVC doit être dense, évocatrice et respecter le style du monde. 
     STYLE DU MONDE : ${worldStyle}
@@ -103,5 +113,44 @@ export const aiService = {
     Réponds EXCLUSIVEMENT en JSON sous ce format :
     { "content": "Ta réponse immersive", "sender": "Architecte MJ" }`;
     return generateAIContent(systemPrompt, userPrompt);
+  },
+
+  async generateImage(prompt) {
+    // Mode Dev : On ne génère pas d'image réelle pour économiser les quotas
+    if (import.meta.env.DEV) {
+      console.log('DEV MODE: Image generation skipped for prompt:', prompt);
+      return "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&q=80&w=1024";
+    }
+
+    const IMAGE_MODEL = 'gemini-2.5-flash-image';
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${IMAGE_MODEL}:generateContent?key=${API_KEY}`;
+    
+    const requestBody = {
+      contents: [{
+        role: 'user',
+        parts: [{ text: `Génère une image haute qualité pour ce personnage de D&D : ${prompt}` }]
+      }],
+      generationConfig: {
+        responseMimeType: "image/png"
+      }
+    };
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) throw new Error('Erreur génération image Gemini');
+
+      const data = await response.json();
+      const base64Data = data.candidates[0].content.parts[0].inlineData.data;
+      return `data:image/png;base64,${base64Data}`;
+    } catch (err) {
+      console.error('Gemini Image Error, falling back to Pollinations:', err);
+      const encodedPrompt = encodeURIComponent(prompt + ", high fantasy, realistic, digital art, dnd style");
+      return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true&model=flux`;
+    }
   }
 };

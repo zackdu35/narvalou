@@ -18,19 +18,29 @@ export default function CharacterCreation({ isOpen, onClose, worldContext, onCom
   })
   const [loading, setLoading] = useState(false)
   const [dvc, setDvc] = useState('')
+  const [portraitUrl, setPortraitUrl] = useState('')
 
   const handleGenerateDVC = async () => {
     setLoading(true)
     try {
+      console.log('Generating identity...');
       const { dvc: generatedDvc } = await aiService.generateCharacterDVC(
         customData, 
         worldContext.archetype.style_guide_dvc || 'Style épique D&D'
       )
+      console.log('DVC generated:', generatedDvc);
       setDvc(generatedDvc)
+      
+      console.log('Generating portrait...');
+      const imageUrl = await aiService.generateImage(generatedDvc);
+      console.log('Portrait generated:', imageUrl);
+      setPortraitUrl(imageUrl)
+      
       setStep('review')
     } catch (err) {
-      console.error(err)
+      console.error('Flow error:', err)
     } finally {
+      console.log('Ending loading state');
       setLoading(false)
     }
   }
@@ -51,6 +61,7 @@ export default function CharacterCreation({ isOpen, onClose, worldContext, onCom
         appearance: customData.appearance,
         stats: customData.stats,
         dvc: dvc,
+        portrait_url: portraitUrl,
         hp_max: 10 + (Math.floor((customData.stats.con - 10) / 2)),
         hp_current: 10 + (Math.floor((customData.stats.con - 10) / 2))
       }
@@ -97,23 +108,67 @@ export default function CharacterCreation({ isOpen, onClose, worldContext, onCom
           <div className="h-px w-24 bg-gold/30 mx-auto mt-8" />
         </div>
  
-        <AnimatePresence mode="wait">
+        <AnimatePresence>
           {loading && (
             <motion.div 
               key="loading"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="flex flex-col items-center py-32"
+              className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-xl"
             >
-              <div className="search-glow" style={{ opacity: 0.3, width: '300px', height: '300px' }} />
-              <motion.div 
-                animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.6, 0.3] }}
-                transition={{ duration: 4, repeat: Infinity }}
-              >
-                <Sparkles size={80} strokeWidth={0.5} className="text-gold" />
-              </motion.div>
-              <p className="mt-16 text-gold/40 font-serif italic text-xl tracking-wide">L'Oracle consulte les écheveaux du temps...</p>
+              {/* ORACLE EYE / IRIS */}
+              <div className="relative">
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  animate={{ 
+                    opacity: [0.2, 0.5, 0.2], 
+                    scale: [1, 1.2, 1],
+                    rotate: 360
+                  }}
+                  transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+                  className="w-64 h-64 border border-gold/10 rounded-full flex items-center justify-center"
+                >
+                  <div className="w-48 h-48 border-[0.5px] border-gold/20 rounded-full" />
+                  <div className="absolute w-32 h-32 border-[0.5px] border-gold/40 rounded-full" />
+                </motion.div>
+
+                <motion.div 
+                  className="absolute inset-0 flex items-center justify-center"
+                  animate={{ scale: [1, 1.1, 1] }}
+                  transition={{ duration: 3, repeat: Infinity }}
+                >
+                  <div className="w-1 h-1 bg-gold rounded-full shadow-[0_0_30px_10px_rgba(212,175,55,0.4)]" />
+                  <Sparkles size={40} strokeWidth={0.5} className="text-gold absolute" />
+                </motion.div>
+                
+                {/* AMBIENT GLOW */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-gold/5 rounded-full blur-[100px] pointer-events-none" />
+              </div>
+
+              <div className="text-center mt-24 max-w-md">
+                <motion.div
+                  initial={{ y: 10, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <span className="text-[10px] text-gold uppercase tracking-[0.6em] mb-4 block font-bold">Protocole de Genèse</span>
+                  <p className="serif text-2xl italic text-white/80 leading-relaxed">
+                    "L'Oracle tisse les fils du destin pour <span className="text-gold">{customData.name || 'votre héros'}</span>..."
+                  </p>
+                </motion.div>
+                
+                <div className="flex justify-center gap-1 mt-12">
+                   {[0,1,2].map(i => (
+                     <motion.div 
+                        key={i}
+                        animate={{ opacity: [0.2, 1, 0.2], scale: [1, 1.5, 1] }}
+                        transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.2 }}
+                        className="w-1 h-1 bg-gold rounded-full"
+                     />
+                   ))}
+                </div>
+              </div>
             </motion.div>
           )}
  
@@ -123,168 +178,205 @@ export default function CharacterCreation({ isOpen, onClose, worldContext, onCom
               key="details"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="trinity-container"
+              className="character-sheet-container"
             >
-              {/* COLONNE 1 : IDENTITÉ */}
-              <div className="trinity-column">
-                <div className="oracle-identity">
-                  <label className="text-gold text-[8px] uppercase tracking-[0.4em] opacity-60 mb-4 block">Identité</label>
+              {/* HEADER SECTION - THE IDENTITY BADGE */}
+              <div className="sheet-header">
+                <div className="sheet-name-box">
+                  <label>Nom du Héros</label>
                   <input 
                     type="text" 
                     autoFocus
-                    placeholder="NOM DU HÉROS"
+                    placeholder="Eldrin l'Éthéré"
                     value={customData.name}
                     onChange={(e) => setCustomData({...customData, name: e.target.value})}
-                    className="oracle-input-hero !text-6xl"
+                    className="sheet-input-name"
                   />
-                  
-                  <div className="flex flex-col gap-6 mt-8">
-                     <div className="grid grid-cols-2 gap-6">
-                        <div className="oracle-sub-field">
-                           <label>Origine</label>
-                           <input 
-                             type="text" 
-                             value={customData.race}
-                             onChange={(e) => setCustomData({...customData, race: e.target.value})}
-                             placeholder="RACE..."
-                           />
-                        </div>
-                        <div className="oracle-sub-field">
-                           <label>Voie</label>
-                           <input 
-                             type="text" 
-                             value={customData.class}
-                             onChange={(e) => setCustomData({...customData, class: e.target.value})}
-                             placeholder="CLASSE..."
-                           />
-                        </div>
-                     </div>
- 
-                     <div className="grid grid-cols-2 gap-6">
-                        <div className="oracle-sub-field">
-                           <label>Âge</label>
-                           <input 
-                             type="text" 
-                             value={customData.age}
-                             onChange={(e) => setCustomData({...customData, age: e.target.value})}
-                             placeholder="25 CYCLES..."
-                           />
-                        </div>
-                        <div className="oracle-sub-field">
-                           <label>Sexe / Genre</label>
-                           <input 
-                             type="text" 
-                             value={customData.gender}
-                             onChange={(e) => setCustomData({...customData, gender: e.target.value})}
-                             placeholder="IDENTITÉ..."
-                           />
-                        </div>
-                     </div>
- 
-                     <div className="oracle-sub-field mt-4">
-                        <label>Traits Distinctifs (Apparence)</label>
-                        <textarea 
-                          value={customData.appearance}
-                          onChange={(e) => setCustomData({...customData, appearance: e.target.value})}
-                          placeholder="YEUX D'OR, CICATRICE, ARMURE DE RELIQUE..."
-                          className="premium-input-line !h-32 !resize-none"
-                        />
-                     </div>
+                </div>
+                <div className="sheet-meta-grid">
+                  <div className="meta-box">
+                    <label>Origine / Race</label>
+                    <input 
+                      type="text" 
+                      value={customData.race}
+                      onChange={(e) => setCustomData({...customData, race: e.target.value})}
+                      placeholder="Humain..."
+                    />
+                  </div>
+                  <div className="meta-box">
+                    <label>Voie / Classe</label>
+                    <input 
+                      type="text" 
+                      value={customData.class}
+                      onChange={(e) => setCustomData({...customData, class: e.target.value})}
+                      placeholder="Guerrier..."
+                    />
+                  </div>
+                  <div className="meta-box">
+                    <label>Niveau</label>
+                    <div className="meta-value">1</div>
                   </div>
                 </div>
               </div>
- 
-              {/* COLONNE 2 : STATS (CONSTELLATION) */}
-              <div className="trinity-column border-x border-white/5 px-8">
-                <label className="text-gold text-[8px] uppercase tracking-[0.4em] opacity-60 mb-4 block text-center">Essence</label>
-                <div className="grid grid-cols-1 gap-6">
-                  {Object.entries(customData.stats).map(([stat, val], i) => (
-                    <motion.div 
-                      key={stat} 
-                      initial={{ opacity: 0, x: 10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.05 }}
-                      className="constellation-node"
-                    >
-                      <label>{stat}</label>
-                      <input 
-                        type="number"
-                        min="3"
-                        max="20"
-                        value={val}
-                        onChange={(e) => {
-                          let newVal = parseInt(e.target.value) || 0;
-                          if (newVal > 20) newVal = 20;
-                          setCustomData({
-                            ...customData,
-                            stats: { ...customData.stats, [stat]: newVal }
-                          });
-                        }}
-                        className="oracle-stat-input !text-3xl"
-                      />
-                    </motion.div>
-                  ))}
+
+              {/* MAIN CONTENT AREA */}
+              <div className="sheet-body">
+                {/* LEFT SIDEBAR - STATS */}
+                <div className="sheet-stats-sidebar">
+                  {Object.entries(customData.stats).map(([stat, val], i) => {
+                    const mod = Math.floor((val - 10) / 2);
+                    return (
+                      <motion.div 
+                        key={stat} 
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.05 }}
+                        className="sheet-stat-box"
+                      >
+                        <label>{stat.toUpperCase()}</label>
+                        <input 
+                          type="number"
+                          min="3"
+                          max="20"
+                          value={val}
+                          onChange={(e) => {
+                            let newVal = parseInt(e.target.value) || 0;
+                            if (newVal > 20) newVal = 20;
+                            setCustomData({
+                              ...customData,
+                              stats: { ...customData.stats, [stat]: newVal }
+                            });
+                          }}
+                        />
+                        <div className="stat-mod">{mod >= 0 ? `+${mod}` : mod}</div>
+                      </motion.div>
+                    );
+                  })}
                 </div>
-              </div>
- 
-              {/* COLONNE 3 : MONDE / LORE */}
-              <div className="trinity-column">
-                <label className="text-gold text-[8px] uppercase tracking-[0.4em] opacity-60 mb-4 block">Échos du Monde</label>
-                <div className="lore-content">
-                  {worldContext?.description || "Un monde de brume et de mystère s'étend devant vous... Le destin de cette terre attend d'être écrit par vos actes."}
-                  
-                  {worldContext?.archetypes && (
-                    <div className="mt-12 pt-8 border-t border-white/5">
-                      <h4 className="text-gold text-[8px] uppercase tracking-[0.3em] mb-4">Légendes de l'Archetype</h4>
-                      <div className="flex flex-wrap gap-2">
-                         <span className="lore-tag">{worldContext.archetypes.name}</span>
-                         <span className="lore-tag">DIFFICULTÉ {worldContext.archetypes.difficulty || 'ÉPIQUE'}</span>
+
+                {/* CENTRAL CONTENT - COMBAT & INFO */}
+                <div className="sheet-main-content">
+                  <div className="combat-stats-row">
+                    <div className="combat-box ac">
+                      <label>Armure (CA)</label>
+                      <div className="val">{10 + Math.floor((customData.stats.dex - 10) / 2)}</div>
+                    </div>
+                    <div className="combat-box init">
+                      <label>Initiative</label>
+                      <div className="val">
+                        {Math.floor((customData.stats.dex - 10) / 2) >= 0 ? `+` : ''}
+                        {Math.floor((customData.stats.dex - 10) / 2)}
                       </div>
                     </div>
-                  )}
+                    <div className="combat-box speed">
+                      <label>Vitesse</label>
+                      <div className="val">30ft</div>
+                    </div>
+                    <div className="combat-box hp-max">
+                      <label>Points de Vie</label>
+                      <div className="hp-indicator">
+                        <span className="text-gold">{10 + Math.floor((customData.stats.con - 10) / 2)}</span>
+                        <span className="mx-2 opacity-20">/</span>
+                        <span className="opacity-40">{10 + Math.floor((customData.stats.con - 10) / 2)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="sheet-description-area">
+                    <div className="info-grid">
+                      <div className="oracle-sub-field">
+                        <label>Âge</label>
+                        <input 
+                          type="text" 
+                          value={customData.age}
+                          onChange={(e) => setCustomData({...customData, age: e.target.value})}
+                          placeholder="25 cycles..."
+                        />
+                      </div>
+                      <div className="oracle-sub-field">
+                        <label>Sexe / Genre</label>
+                        <input 
+                          type="text" 
+                          value={customData.gender}
+                          onChange={(e) => setCustomData({...customData, gender: e.target.value})}
+                          placeholder="Féminin..."
+                        />
+                      </div>
+                    </div>
+
+                    <div className="oracle-sub-field mt-6">
+                      <label>Apparence & Traits Distinctifs</label>
+                      <textarea 
+                        value={customData.appearance}
+                        onChange={(e) => setCustomData({...customData, appearance: e.target.value})}
+                        placeholder="Une cicatrice sur l'œil gauche, une armure de cuir bouilli..."
+                        className="sheet-textarea"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
- 
-              {/* ACTION FINALE */}
-              <div className="flex flex-col items-center justify-center w-full mt-12" style={{ gridColumn: '1 / -1' }}>
-                <div className="mb-4 text-center">
-                  <span className="text-[9px] text-white/40 uppercase tracking-[0.5em]">Énergie du Creuset</span>
-                  <div className={`text-4xl serif mt-2 transition-colors ${72 - Object.values(customData.stats).reduce((a,b)=>a+b,0) < 0 ? 'text-red-500' : 'text-white'}`}>
+
+              {/* ACTION FOOTER */}
+              <div className="sheet-footer">
+                <div className="pool-indicator">
+                  <span className="label">Réserve du Creuset</span>
+                  <div className={`value ${72 - Object.values(customData.stats).reduce((a,b)=>a+b,0) < 0 ? 'text-red-500' : ''}`}>
                     {72 - Object.values(customData.stats).reduce((a,b)=>a+b,0)}
                   </div>
                 </div>
                 
                 <button 
                   onClick={handleGenerateDVC}
-                  disabled={Object.values(customData.stats).reduce((a,b)=>a+b,0) > 72}
-                  className="btn-oracle-invoke"
-                  style={{ opacity: Object.values(customData.stats).reduce((a,b)=>a+b,0) > 72 ? 0.2 : 1 }}
+                  disabled={Object.values(customData.stats).reduce((a,b)=>a+b,0) > 72 || !customData.name}
+                  className="btn-invoke-hero"
                 >
+                  <Sparkles size={18} className="mr-3" />
                   Invoquer l'Apparence
                 </button>
               </div>
             </motion.div>
           )}
+
  
           {!loading && step === 'review' && (
             <motion.div 
               key="review"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="text-center py-20"
+              className="text-center py-10"
             >
-              <div className="max-w-3xl mx-auto">
+              <div className="max-w-4xl mx-auto">
                 <span className="text-gold text-[9px] uppercase tracking-[0.5em] opacity-40">Vision de l'Oracle</span>
-                <p className="serif text-4xl italic leading-relaxed text-white/90 mt-8 mb-16">
-                  "{dvc}"
-                </p>
                 
-                <div className="flex justify-center gap-12">
-                   <button onClick={() => setStep('details')} className="btn-mini hover:text-gold transition-colors italic serif text-lg opacity-40 hover:opacity-100">Retourner au Creuset</button>
+                <div className="flex flex-col md:flex-row items-center gap-12 mt-12 mb-16">
+                  {portraitUrl && (
+                    <motion.div 
+                      initial={{ scale: 0.9, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      className="w-full md:w-1/2 aspect-square rounded-lg overflow-hidden border border-gold/20 shadow-[0_0_50px_rgba(212,175,55,0.1)]"
+                    >
+                      <img src={portraitUrl} alt="Portrait du Héros" className="w-full h-full object-cover" />
+                    </motion.div>
+                  )}
+                  
+                  <div className="flex-1 text-left">
+                    <p className="serif text-3xl italic leading-relaxed text-white/90">
+                      "{dvc}"
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="review-actions">
+                   <button 
+                     onClick={() => setStep('details')} 
+                     className="btn-secondary-architect"
+                   >
+                     RETOURNER AU CREUSET
+                   </button>
                    <button 
                     onClick={handleSave}
                     className="btn-architect"
-                    style={{ margin: 0 }}
                   >
                     PRENDRE VIE
                   </button>
