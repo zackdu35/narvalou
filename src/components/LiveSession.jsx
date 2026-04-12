@@ -179,14 +179,15 @@ export default function LiveSession({ campaign, character, session, onExit }) {
   const [pendingDice, setPendingDice] = useState([])
   const [pendingActions, setPendingActions] = useState({})
   const [readyPlayers, setReadyPlayers] = useState({})
-  const [actionInput, setActionInput] = useState('')
   const [imageGenEnabled, setImageGenEnabled] = useState(true)
-  const [selectedChar, setSelectedChar] = useState(null) // for character sheet modal
-  const [quests, setQuests] = useState([]) // active quests
+  const [selectedChar, setSelectedChar] = useState(null)
+  const [quests, setQuests] = useState([])
   const [showMap, setShowMap] = useState(false)
   const [mapImageUrl, setMapImageUrl] = useState(campaign.map_url || null)
   const chatEndRef = useRef(null)
   const chatContainerRef = useRef(null)
+  const imageGenInProgress = useRef(false) // prevent double image gen
+  const hasInitialized = useRef(false) // prevent double initial narration
 
   // --- Effects ---
   useEffect(() => {
@@ -196,7 +197,8 @@ export default function LiveSession({ campaign, character, session, onExit }) {
   }, [campaign.id])
 
   useEffect(() => {
-    if (groupMembers.length > 0 && messages.length === 0) {
+    if (groupMembers.length > 0 && messages.length === 0 && !hasInitialized.current) {
+      hasInitialized.current = true
       generateInitialNarration()
     }
   }, [groupMembers])
@@ -310,10 +312,10 @@ export default function LiveSession({ campaign, character, session, onExit }) {
       setLoading(true)
       const response = await aiService.generateResponse(
         campaign, character, [],
-        `Le MJ accueille le groupe dans l'aventure "${campaign.name}". Décris la scène d'ouverture.`,
+        `Le MJ accueille le groupe dans l'aventure "${campaign.name}". Décris la scène d'ouverture. NE DEMANDE PAS de jets de dés pour la scène d'ouverture, c'est juste narratif.`,
         groupMembers
       )
-      await processAIResponse(response)
+      await processAIResponse(response, true)
       setLoading(false)
     } catch (err) {
       console.error('Error generating initial narration:', err)
@@ -323,7 +325,8 @@ export default function LiveSession({ campaign, character, session, onExit }) {
   }
 
   // --- Core: Process AI Response ---
-  const processAIResponse = async (response) => {
+  // skipImage = true to prevent image gen on initial narration / double gen
+  const processAIResponse = async (response, skipImage = false) => {
     const mjMsg = {
       id: `mj-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       role: 'mj',
@@ -355,7 +358,6 @@ export default function LiveSession({ campaign, character, session, onExit }) {
           sender: 'Système'
         }])
 
-        // If it's a quest-related update, add to quests
         if (call.name === 'update_lore_entry' && call.args?.category === 'quête') {
           setQuests(prev => [...prev.filter(q => q.key !== call.args.key), { key: call.args.key, details: call.args.details, done: false }])
         }
@@ -371,8 +373,9 @@ export default function LiveSession({ campaign, character, session, onExit }) {
       }))])
     }
 
-    // Scene image (only if enabled)
-    if (imageGenEnabled && response.content) {
+    // Scene image (only if enabled AND not skipped AND no gen already in progress)
+    if (imageGenEnabled && !skipImage && response.content && !imageGenInProgress.current) {
+      imageGenInProgress.current = true
       aiService.generateSceneImage(
         response.content.substring(0, 200),
         response.location || campaign.name
@@ -380,6 +383,8 @@ export default function LiveSession({ campaign, character, session, onExit }) {
         if (imageUrl) setSceneImage(imageUrl)
       }).catch(err => {
         console.warn('[Scene Image] Generation failed:', err.message)
+      }).finally(() => {
+        imageGenInProgress.current = false
       })
     }
   }
@@ -524,15 +529,14 @@ export default function LiveSession({ campaign, character, session, onExit }) {
   }
 
   // --- Validation Collective (in chat) ---
-  const submitAction = async () => {
-    if (!actionInput.trim()) return
+  const submitAction = async (actionText) => {
+    if (!actionText?.trim()) return
 
-    const newPending = { ...pendingActions, [character.id]: actionInput.trim() }
+    const newPending = { ...pendingActions, [character.id]: actionText.trim() }
     const newReady = { ...readyPlayers, [character.id]: true }
 
     setPendingActions(newPending)
     setReadyPlayers(newReady)
-    setActionInput('')
 
     db.gameState.update(campaign.id, { metadata: { pending_actions: newPending, ready_players: newReady, quests } })
       .catch(err => console.warn('[Game State] RLS blocked:', err.message))
@@ -572,17 +576,30 @@ export default function LiveSession({ campaign, character, session, onExit }) {
     }
   }
 
-  // --- Send Handler ---
+  // --- Unified Send Handler ---
+  // Everything goes through here: slash commands, actions, or direct RP
   const handleSend = async () => {
     if (!input.trim() || loading) return
     const userMsg = input.trim()
     setInput('')
 
+    // Slash commands always take priority
     if (userMsg.startsWith('/')) {
       const handled = await processSlashCommand(userMsg)
       if (handled) return
     }
 
+    // If player hasn't submitted a turn action yet, treat as action
+    const playerIsReadyNow = readyPlayers[character?.id]
+    if (!playerIsReadyNow) {
+      // Add as user message + submit as action
+      setMessages(prev => [...prev, { id: `local-${Date.now()}`, role: 'user', content: userMsg, sender: character.name }])
+      try { await db.logs.add(campaign.id, 'chat', userMsg, character.name) } catch {}
+      await submitAction(userMsg)
+      return
+    }
+
+    // Already submitted action — this is just chat/RP
     setMessages(prev => [...prev, { id: `local-${Date.now()}`, role: 'user', content: userMsg, sender: character.name }])
     try { await db.logs.add(campaign.id, 'chat', userMsg, character.name) } catch {}
 
@@ -765,63 +782,33 @@ export default function LiveSession({ campaign, character, session, onExit }) {
             <div ref={chatEndRef} />
           </div>
 
-          {/* Action Phase — in chat input area */}
-          {!playerIsReady ? (
-            <div className="chat-input-container">
+          {/* Single unified input */}
+          <div className="chat-input-container">
+            {!playerIsReady ? (
               <div className="action-bar-label">
                 ⚔️ Action du Tour
                 {totalPlayers > 0 && <span className="ready-counter">{readyCount}/{totalPlayers}</span>}
               </div>
-              <div className="chat-input-wrapper">
-                <input
-                  type="text"
-                  className="chat-input"
-                  value={actionInput}
-                  onChange={e => setActionInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && actionInput.trim() && submitAction()}
-                  placeholder="Décrivez votre action pour ce tour..."
-                  disabled={loading}
-                />
-                <button className="chat-send-btn action-send" onClick={submitAction} disabled={loading || !actionInput.trim()} title="Valider l'action">
-                  <Check size={16} />
-                </button>
-              </div>
-              <div className="chat-input-wrapper" style={{ marginTop: 4 }}>
-                <input
-                  type="text"
-                  className="chat-input"
-                  value={input}
-                  onChange={e => setInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleSend()}
-                  placeholder="Ou discutez... (/help)"
-                  disabled={loading}
-                />
-                <button className="chat-send-btn" onClick={handleSend} disabled={loading || !input.trim()} title="Envoyer">
-                  <Send size={16} />
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="chat-input-container">
+            ) : (
               <div className="action-submitted-bar">
                 ✅ Action soumise — {readyCount}/{totalPlayers} prêts
               </div>
-              <div className="chat-input-wrapper">
-                <input
-                  type="text"
-                  className="chat-input"
-                  value={input}
-                  onChange={e => setInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleSend()}
-                  placeholder="Dites quelque chose... (/help)"
-                  disabled={loading}
-                />
-                <button className="chat-send-btn" onClick={handleSend} disabled={loading || !input.trim()} title="Envoyer">
-                  <Send size={16} />
-                </button>
-              </div>
+            )}
+            <div className="chat-input-wrapper">
+              <input
+                type="text"
+                className="chat-input"
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSend()}
+                placeholder={!playerIsReady ? 'Décrivez votre action... (/help)' : 'Discutez en attendant... (/help)'}
+                disabled={loading}
+              />
+              <button className="chat-send-btn" onClick={handleSend} disabled={loading || !input.trim()} title="Envoyer">
+                <Send size={16} />
+              </button>
             </div>
-          )}
+          </div>
         </aside>
       </div>
     </motion.div>

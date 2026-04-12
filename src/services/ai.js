@@ -1,10 +1,10 @@
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-const MODEL = 'gemini-2.5-flash-lite';
+const MODEL = 'gemini-3-flash-preview';
 
 
 async function generateAIContent(systemPrompt, userPrompt) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`;
-  
+
   const response = await fetch(url, {
     method: 'POST',
     headers: {
@@ -32,7 +32,7 @@ async function generateAIContent(systemPrompt, userPrompt) {
 
   const data = await response.json();
   const text = data.candidates[0].content.parts[0].text;
-  
+
   try {
     return JSON.parse(text);
   } catch (e) {
@@ -103,12 +103,12 @@ export const aiService = {
     Réponds EXCLUSIVEMENT en JSON : { "dvc": "La description visuelle en 2-3 phrases." }`;
     return generateAIContent(systemPrompt, `Génère la DVC pour ${characterData.name}`);
   },
-  
+
   async generateResponse(campaign, character, history, userPrompt, allCharacters = []) {
-    const groupContext = allCharacters.length > 0 
-      ? `Groupe de héros :\n${allCharacters.map(c => `- ${c.name} (${c.race} ${c.class}, PV: ${c.hp_current}/${c.hp_max}, Niveau ${c.level || 1}, Stats: ${JSON.stringify(c.stats || {})})`).join('\n')}` 
+    const groupContext = allCharacters.length > 0
+      ? `Groupe de héros :\n${allCharacters.map(c => `- ${c.name} (${c.race} ${c.class}, PV: ${c.hp_current}/${c.hp_max}, Niveau ${c.level || 1}, Stats: ${JSON.stringify(c.stats || {})})`).join('\n')}`
       : `Le personnage du joueur est ${character.name} (un ${character.race} ${character.class}, PV: ${character.hp_current}/${character.hp_max}).`;
-    
+
     const systemPrompt = `Tu es le Maître du Jeu IA (MJ) de l'univers "${campaign.name}". 
     ${groupContext}
     Le joueur actif est ${character.name}.
@@ -120,10 +120,13 @@ export const aiService = {
     - Inclus les métadonnées de la scène actuelle.
     
     SYSTÈME DE DÉS :
-    - Si une action nécessite un jet de dés (attaque, perception, sauvegarde, compétence...), 
-      ajoute un objet dans "dice_requests" au lieu de lancer toi-même.
+    - Si une action nécessite un jet de dés, ajoute un ou plusieurs objets dans "dice_requests".
+    - Tu PEUX demander un jet à CHAQUE joueur si la situation l'exige (ex: "tout le monde lance Perception").
+    - Ne demande PAS de jet de dés pour la scène d'ouverture ni pour des actions purement narratives.
     - Types de jets : d4, d6, d8, d10, d12, d20
-    - Inclus le modificateur basé sur les stats du joueur.
+    - IMPORTANT : Le "modifier" doit être le MODIFICATEUR D&D, PAS la valeur brute de la stat.
+      Formule : modifier = floor((stat - 10) / 2)
+      Exemples : STR 16 → modifier +3, DEX 14 → modifier +2, WIS 8 → modifier -1, CON 10 → modifier 0
     - dd = Degré de Difficulté (optionnel).
     
     FUNCTION CALLING :
@@ -187,7 +190,7 @@ export const aiService = {
 
     const IMAGE_MODEL = 'gemini-2.5-flash-image';
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${IMAGE_MODEL}:generateContent?key=${API_KEY}`;
-    
+
     const requestBody = {
       contents: [{
         parts: [{ text: prompt }]
@@ -211,7 +214,7 @@ export const aiService = {
       }
 
       const data = await response.json();
-      
+
       // Scan parts for image data
       const parts = data.candidates?.[0]?.content?.parts || [];
       for (const part of parts) {
@@ -220,7 +223,7 @@ export const aiService = {
           return `data:${mimeType};base64,${part.inlineData.data}`;
         }
       }
-      
+
       throw new Error('No image data in Gemini response');
     } catch (err) {
       console.error('Gemini Image Error, falling back to Pollinations:', err);
