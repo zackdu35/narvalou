@@ -50,15 +50,15 @@ En cas de mort de tous les joueurs, l'IA génère une image épique de leur chut
 - **Le MJ DJ** : L'IA peut changer la musique d'ambiance en fonction de la situation narrative via `trigger_sound()`.
 - **Réactivité sonore** : Des effets sonores courts (SFX) peuvent être déclenchés lors de réussites ou d'échecs critiques.
  
-+## 9. États de Santé et Mort (Incapacité)
-+1. **L'état 0 PV** : Le joueur ne meurt pas instantanément. Il entre en état "Inconscient". L'interface remplace son champ d'action par un bouton **"Jet de Sauvegarde contre la Mort"**.
-+2. **Stabilisation** : L'IA MJ doit prioriser la narration de cet état critique. Un autre joueur peut utiliser une action pour stabiliser le mourant via la pile d'actions.
-+3. **Mort Permanente** : Si 3 échecs sont cumulés en DB, le personnage est retiré de la session.
-+
-+## 10. Création et Progression (Level Up)
-+1. **Initialisation** : La création se fait via un formulaire guidé par l'IA (en mode setup). L'IA suggère des stats basées sur la classe choisie.
-+2. **Génération de DVC** : Une fois le personnage créé, l'IA MJ génère automatiquement sa **Description Visuelle Courte** pour garantir la cohérence des futures images AI.
-+3. **Level Up** : Lorsqu'un seuil d'XP est atteint (déclenché par `update_stat`), le joueur reçoit une notification. Le MJ propose les choix de montée de niveau (nouveaux sorts, spécialisations) dans le chat lors d'un repos long.
+## 9. États de Santé et Mort (Incapacité)
+1. **L'état 0 PV** : Le joueur ne meurt pas instantanément. Il entre en état "Inconscient". L'interface remplace son champ d'action par un bouton **"Jet de Sauvegarde contre la Mort"**.
+2. **Stabilisation** : L'IA MJ doit prioriser la narration de cet état critique. Un autre joueur peut utiliser une action pour stabiliser le mourant via la pile d'actions.
+3. **Mort Permanente** : Si 3 échecs sont cumulés en DB, le personnage est retiré de la session.
+
+## 10. Création et Progression (Level Up)
+1. **Initialisation** : La création se fait via un formulaire guidé par l'IA (en mode setup). L'IA suggère des stats basées sur la classe choisie.
+2. **Génération de DVC** : Une fois le personnage créé, l'IA MJ génère automatiquement sa **Description Visuelle Courte** pour garantir la cohérence des futures images AI.
+3. **Level Up** : Lorsqu'un seuil d'XP est atteint (déclenché par `update_stat`), le joueur reçoit une notification. Le MJ propose les choix de montée de niveau (nouveaux sorts, spécialisations) dans le chat lors d'un repos long.
 
 ## 11. Détection d'Intention et Automatisation (MJ réactif)
 L'IA MJ est responsable de la transition entre les phases de jeu en analysant les intentions narratives des joueurs.

@@ -29,6 +29,6 @@ L'IA peut déclencher des actions via le Function Calling :
 - `lock_campaign(reason)` : En cas de mort totale (TPK), verrouille la session et affiche l'écran de fin.
 
 
-## 3. Logs et Transparence
+## 4. Logs et Transparence
 - **Logs MJ (Hidden)** : Chaque réponse de l'IA génère un log invisible pour les joueurs mais accessible en debug. L'IA y explique ses calculs : "Le joueur a fait 15, le DD était de 14. Succès de justesse. J'ajoute une complication mineure...".
 - **Historique Technique** : Un panneau latéral peut afficher l'historique des jets de dés et des appels de fonctions (XP, PV) pour vérifier la cohérence.
