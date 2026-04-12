@@ -3,6 +3,7 @@ import { Plus, Play, Sparkles, LogOut, User as UserIcon, Orbit } from 'lucide-re
 import { motion, AnimatePresence } from 'framer-motion'
 import GenesisInterface from './components/GenesisInterface'
 import CharacterCreation from './components/CharacterCreation'
+import LiveSession from './components/LiveSession'
 import Auth from './components/Auth'
 import { db, supabase } from './services/supabase'
 import { aiService } from './services/ai'
@@ -505,9 +506,10 @@ function App() {
         )}
 
         {view === 'game' && (
-          <GameInterface 
+          <LiveSession 
             campaign={activeCampaign} 
             character={activeCharacter}
+            session={session}
             onExit={() => {
               setView('join')
               loadData()
