@@ -44,6 +44,23 @@ body::before {
   padding-top: 8rem;
 }
 
+/* Utilities */
+.text-center { text-align: center; }
+.text-gold { color: var(--gold); }
+.serif { font-family: var(--font-serif); }
+.uppercase { text-transform: uppercase; }
+.tracking-widest { letter-spacing: 0.3em; }
+
+.mb-4 { margin-bottom: 1rem; }
+.mb-8 { margin-bottom: 2rem; }
+.mb-12 { margin-bottom: 3rem; }
+.mb-16 { margin-bottom: 4rem; }
+.mb-24 { margin-bottom: 6rem; }
+
+.text-sm { font-size: 0.875rem; }
+.text-4xl { font-size: 2.25rem; }
+
+
 /* Header Cinématique */
 .hero {
   height: 60vh;
@@ -250,3 +267,263 @@ body::before {
 .btn-close-architect:hover {
   color: #fff;
 }
+
+/* --- Genesis Interface - Advanced Styles --- */
+
+.architect-layout {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+
+.architect-sidebar {
+  width: 320px;
+  background: rgba(10, 10, 10, 0.8);
+  backdrop-filter: blur(20px);
+  border-right: 1px solid rgba(212, 175, 55, 0.1);
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+}
+
+.architect-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 4rem;
+  position: relative;
+}
+
+/* Console de Traitement */
+.console-log {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: #4CAF50;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+}
+
+.console-entry {
+  opacity: 0.7;
+  display: flex;
+  gap: 10px;
+}
+
+.console-entry.info { color: #81D4FA; }
+.console-entry.process { color: #FFB74D; }
+.console-entry.gen { color: #CE93D8; }
+
+.console-entry span:first-child {
+  opacity: 0.5;
+  min-width: 60px;
+}
+
+/* Cards de Lore */
+.lore-card-container {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+  width: 100%;
+  max-width: 1100px;
+}
+
+.lore-card {
+  background: rgba(20, 20, 20, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 2rem;
+  border-radius: 4px;
+  text-align: left;
+  transition: all 0.4s ease;
+  backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+  min-height: 400px;
+}
+
+.lore-card:hover {
+  border-color: var(--gold);
+  background: rgba(212, 175, 55, 0.05);
+}
+
+.lore-card h4 {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  color: var(--gold-bright);
+  margin-bottom: 1rem;
+}
+
+.lore-card p {
+  font-size: 0.9rem;
+  color: var(--text-alt);
+  margin-bottom: 2rem;
+  flex: 1;
+}
+
+.lore-card-actions {
+  display: flex;
+  gap: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 1.5rem;
+}
+
+.btn-mini {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  padding: 0.5rem 1rem;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-mini:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+.btn-mini.primary {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: #000;
+}
+
+/* Visualization Step */
+.visual-preview {
+  width: 100%;
+  max-width: 900px;
+  aspect-ratio: 16/9;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 50px 100px rgba(0,0,0,0.8);
+}
+
+.visual-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.style-guide-panel {
+  margin-top: 3rem;
+  text-align: left;
+  padding: 2rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-left: 2px solid var(--gold);
+  max-width: 800px;
+}
+
+.style-guide-panel h5 {
+  color: var(--gold);
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  font-size: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.style-guide-panel p {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.25rem;
+  opacity: 0.8;
+}
+
+/* --- Game Interface --- */
+
+.game-layout {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #000;
+}
+
+.game-topbar {
+  height: 60px;
+  background: rgba(10, 10, 10, 0.8);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 2rem;
+  z-index: 100;
+}
+
+.game-content {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.game-sidebar-left {
+  width: 280px;
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(5, 5, 5, 0.5);
+}
+
+.game-sidebar-right {
+  width: 380px;
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(5, 5, 5, 0.8);
+  display: flex;
+  flex-direction: column;
+}
+
+.game-main {
+  flex: 1;
+  position: relative;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+}
+
+.scene-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.scene-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(0.6) contrast(1.2);
+}
+
+.scene-overlay {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.8) 100%);
+}
+
+.scene-narration {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 4rem;
+  background: linear-gradient(to top, rgba(0,0,0,0.95) 0%, transparent 100%);
+  text-align: center;
+}
+
+.chat-msg {
+  padding: 1rem;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.02);
+  border-left: 2px solid transparent;
+}
+
+.chat-msg.mj {
+  border-left-color: var(--gold);
+}
+
+
