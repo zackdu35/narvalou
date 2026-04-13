@@ -1,6 +1,6 @@
 # Mécaniques de Jeu et IA - Spécifications
 
-## 1. Le Maître du Jeu (gemini-2.5-flash-lite)
+## 1. Le Maître du Jeu (gemini-3-flash-preview)
 L'IA doit agir selon un profil **"Hardcore & RAW"** :
 - **Narrateur** : Décrit l'environnement selon le mode "Théâtre de l'esprit". Pas de grille de combat. Les distances et positions sont gérées narrativement par l'IA.
 - **Arbitre Technique (Délégation Supabase)** : Pour éviter les hallucinations de calcul, l'IA ne gère pas les stocks (PV, flèches, or, emplacements de sorts) de tête. Elle effectue des **Function Calls** pour lire/modifier l'état dans Supabase. Si l'IA dit "Tu n'as plus de sorts de niveau 2", c'est parce que la DB affiche 0.

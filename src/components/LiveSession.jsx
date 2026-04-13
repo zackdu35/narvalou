@@ -234,12 +234,29 @@ export default function LiveSession({ campaign, character, session, onExit }) {
         if (newLog.metadata?.location) setLocation(newLog.metadata.location)
         if (newLog.metadata?.time_of_day) setTimeOfDay(newLog.metadata.time_of_day)
         if (newLog.metadata?.scene_mood) setSceneMood(newLog.metadata.scene_mood)
+        
+        // Synchronize dice requests
+        if (newLog.metadata?.dice_requests?.length > 0) {
+          setPendingDice(newLog.metadata.dice_requests.map((dr, i) => ({
+            ...dr,
+            id: `dice-${newLog.id}-${i}`
+          })))
+        } else {
+          setPendingDice([])
+        }
       }
 
       // If this is an action log, mark player as ready
       if (newLog.metadata?.is_action && newLog.metadata?.character_id) {
         setReadyPlayers(prev => ({ ...prev, [newLog.metadata.character_id]: true }))
         setPendingActions(prev => ({ ...prev, [newLog.metadata.character_id]: newLog.content }))
+      }
+
+      // If this is a dice result log, clear the corresponding request for everyone
+      if (newLog.type === 'dice') {
+        setPendingDice(prev => prev.filter(d => 
+          !(d.player === newLog.sender_name && d.reason === newLog.metadata?.reason)
+        ))
       }
     })
     return () => supabase.removeChannel(channel)
@@ -320,13 +337,18 @@ export default function LiveSession({ campaign, character, session, onExit }) {
           sender: log.sender_name,
           metadata: log.metadata
         })))
-        // Reconstruct local state (metadata and readiness) from history
+        // Reconstruct local state (metadata, readiness, and dice) from history
         let latestReady = {}
         let latestActions = {}
+        let latestDice = []
         logs.forEach(log => {
           if (log.type === 'narration') {
             latestReady = {}
             latestActions = {}
+            latestDice = (log.metadata?.dice_requests || []).map((dr, i) => ({
+              ...dr,
+              id: `dice-${log.id}-${i}`
+            }))
             if (log.metadata) {
               if (log.metadata.location) setLocation(log.metadata.location)
               if (log.metadata.time_of_day) setTimeOfDay(log.metadata.time_of_day)
@@ -336,10 +358,16 @@ export default function LiveSession({ campaign, character, session, onExit }) {
           } else if (log.metadata?.is_action && log.metadata?.character_id) {
             latestReady[log.metadata.character_id] = true
             latestActions[log.metadata.character_id] = log.content
+          } else if (log.type === 'dice') {
+            // Remove matched dice request
+            latestDice = latestDice.filter(d => 
+              !(d.player === log.sender_name && d.reason === log.metadata?.reason)
+            )
           }
         })
         setReadyPlayers(latestReady)
         setPendingActions(latestActions)
+        setPendingDice(latestDice)
       }
 
       // Load shared state from game state table
@@ -403,7 +431,8 @@ export default function LiveSession({ campaign, character, session, onExit }) {
     await db.logs.add(campaign.id, 'narration', response.content, response.sender || 'Architecte MJ', {
       location: response.location,
       time_of_day: response.time_of_day,
-      scene_mood: response.scene_mood
+      scene_mood: response.scene_mood,
+      dice_requests: response.dice_requests
     })
 
     // Update shared game state with new metadata
@@ -442,13 +471,8 @@ export default function LiveSession({ campaign, character, session, onExit }) {
       await loadGroupMembers()
     }
 
-    // Dice requests (still local-only, as each player sees their own dice prompt)
-    if (response.dice_requests?.length > 0) {
-      setPendingDice(prev => [...prev, ...response.dice_requests.map((dr, i) => ({
-        ...dr,
-        id: `dice-${Date.now()}-${i}`
-      }))])
-    }
+    // Dice requests are now handled via game_logs and Realtime (processAIResponse pushes to logs, then subscription pulls for all players)
+    // No longer updating setPendingDice locally here to avoid double-adding when the Realtime update arrives.
 
     // Scene image generation — persist URL in game_state so ALL clients see it
     if (imageGenEnabled && !skipImage && response.content && !imageGenInProgress.current) {
@@ -505,7 +529,11 @@ export default function LiveSession({ campaign, character, session, onExit }) {
     const resultMsg = `🎲 ${character.name} lance ${rollResult.type} pour "${rollResult.reason}": ${rollResult.raw}${rollResult.modifier ? (rollResult.modifier >= 0 ? '+' : '') + rollResult.modifier : ''} = ${rollResult.total}${rollResult.dd ? ` (DD ${rollResult.dd}: ${rollResult.success ? 'Succès ✅' : 'Échec ❌'})` : ''}`
 
     // Persist dice result → Realtime broadcasts to all clients
-    await db.logs.add(campaign.id, 'dice', resultMsg, character.name)
+    await db.logs.add(campaign.id, 'dice', resultMsg, character.name, {
+      is_dice_result: true,
+      reason: rollResult.reason,
+      character_id: character.id
+    })
 
     setLoading(true)
     try {

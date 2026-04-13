@@ -11,7 +11,7 @@ Créer une plateforme de Jeu de Rôle (JdR) en ligne où l'intelligence artifici
 ## 3. Architecture Technique (Prévisionnelle)
 - **Frontend** : React + Vite + Tailwind CSS (ou CSS custom pour le style premium).
 - **Backend/Base de données** : Supabase (Authentification, Realtime, Database, Storage).
-- **IA Narratrice** : gemini-2.5-flash-lite (via API).
+- **IA Narratrice** : gemini-3-flash-preview (via API).
 - **IA Image** : gemini-2.5-flash-image (via API, avec injection DVC).
 - **Source de Vérité** : Supabase (Stats, Inventaire, Logs, États du monde).
 
