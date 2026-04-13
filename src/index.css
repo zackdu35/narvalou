@@ -1074,6 +1074,43 @@ body::before {
 }
 
 
+.sheet-select {
+  width: 100%;
+  min-width: 140px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff !important;
+  padding: 0.5rem 2rem 0.5rem 0.5rem;
+  font-size: 0.8rem;
+  border-radius: 4px;
+  outline: none;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23d4af37' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 0.8rem;
+  font-family: inherit;
+  font-weight: 300;
+  letter-spacing: 0.05em;
+}
+
+.sheet-select:focus {
+  border-color: var(--gold);
+  background-color: rgba(212, 175, 55, 0.08);
+  box-shadow: 0 0 15px rgba(212, 175, 55, 0.1);
+}
+
+.sheet-select option {
+  background: #0f0f0f;
+  color: #fff;
+  padding: 12px;
+  font-size: 0.9rem;
+}
+
+/* Fin premium select */
+
 /* --- Premium Search Bar --- */
 .premium-search-container {
   position: relative;
@@ -1605,17 +1642,25 @@ body::before {
 }
 
 .sheet-header {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4rem;
+  display: flex;
   align-items: flex-end;
+  gap: 4rem;
   border-bottom: 1px solid rgba(212, 175, 55, 0.1);
   padding-bottom: 2rem;
 }
 
 .sheet-name-box {
+  flex: 1;
+  min-width: 300px;
   display: flex;
   flex-direction: column;
+}
+
+.sheet-meta-grid {
+  flex: 2;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
 }
 
 .sheet-name-box label {
@@ -1632,10 +1677,11 @@ body::before {
   border-bottom: 2px solid rgba(212, 175, 55, 0.3) !important;
   color: #fff !important;
   font-family: var(--font-serif) !important;
-  font-size: 3.5rem !important;
+  font-size: 2.8rem !important;
   padding: 0.5rem 0 !important;
   outline: none !important;
   width: 100%;
+  line-height: 1.1 !important;
   transition: all 0.4s ease;
 }
 
@@ -1643,24 +1689,26 @@ body::before {
   border-bottom-color: var(--gold) !important;
 }
 
-.sheet-meta-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 2rem;
-}
 
 .meta-box {
   display: flex;
   flex-direction: column;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  padding-bottom: 0.5rem;
+  padding-bottom: 1rem;
+  height: 90px;
 }
 
 .meta-box label {
-  font-size: 8px;
+  font-size: 9px;
   text-transform: uppercase;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.2rem;
   color: rgba(255, 255, 255, 0.3);
+}
+
+.meta-box select,
+.meta-box .meta-value,
+.meta-box input:not(.sheet-input-name) {
+  margin-top: auto;
 }
 
 .meta-box input {
@@ -1669,15 +1717,20 @@ body::before {
   color: #fff;
   font-family: var(--font-serif);
   font-size: 1.2rem;
-  padding: 4px 0;
+  padding: 6px 0;
   outline: none;
+  line-height: normal;
 }
 
 .meta-value {
   font-family: var(--font-serif);
   font-size: 1.5rem;
   color: var(--gold);
-  padding: 4px 0;
+  padding: 0.5rem 0;
+  height: 38px;
+  /* Correspond à la hauteur du select avec son padding */
+  display: flex;
+  align-items: center;
 }
 
 .sheet-body {
@@ -3179,4 +3232,4 @@ body::before {
 .chat-action-btn.active-toggle {
   color: var(--gold);
   border-color: rgba(212, 175, 55, 0.3);
-}
+}

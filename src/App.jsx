@@ -209,11 +209,51 @@ function App() {
   }
 
   const legacyWorlds = [
-    { id: 'legacy-1', title: "Hogwarts", type: "Wizarding World", description: "Une magie plus ancienne que les fondateurs s'éveille dans les profondeurs de Poudlard.", image: "/campaigns/potter.png" },
-    { id: 'legacy-2', title: "Azeroth", type: "Warcraft", description: "L'ombre du Vide s'étend sur les îles flottantes, menaçant l'équilibre du monde.", image: "/campaigns/wow.png" },
-    { id: 'legacy-3', title: "Runeterra", type: "League of Legends", description: "Le conflit entre Piltover et Zaun atteint son apogée technologique.", image: "/campaigns/runeterra.png" },
-    { id: 'legacy-4', title: "Wall Maria", type: "Attack on Titan", description: "Face à l'immensité des Titans, l'humanité joue sa dernière carte au crépuscule.", image: "/campaigns/snk.png" },
-    { id: 'legacy-5', title: "Forgotten Realms", type: "D&D Classic", description: "Les anciens wyrms se réveillent pour réclamer leur héritage de feu et de sang.", image: "/campaigns/dnd.png" }
+    { 
+      id: 'legacy-1', 
+      title: "Hogwarts", 
+      type: "Wizarding World", 
+      description: "Une magie plus ancienne que les fondateurs s'éveille dans les profondeurs de Poudlard.", 
+      image: "/campaigns/potter.png",
+      suggested_classes: ["Sorcier", "Auror", "Botaniste", "Alchimiste", "Magizoologiste", "Professeur", "Mage Noir"],
+      suggested_races: ["Sorcier (Sang-Pur)", "Sorcier (Né-Moldu)", "Demi-Géant", "Demi-Vélane"]
+    },
+    { 
+      id: 'legacy-2', 
+      title: "Azeroth", 
+      type: "Warcraft", 
+      description: "L'ombre du Vide s'étend sur les îles flottantes, menaçant l'équilibre du monde.", 
+      image: "/campaigns/wow.png",
+      suggested_classes: ["Guerrier", "Mage", "Voleur", "Prêtre", "Chasseur", "Paladin", "Chaman", "Druide"],
+      suggested_races: ["Humain", "Orc", "Elfe", "Nain", "Mort-Vivant", "Troll", "Tauren", "Gnome"]
+    },
+    { 
+      id: 'legacy-3', 
+      title: "Runeterra", 
+      type: "League of Legends", 
+      description: "Le conflit entre Piltover et Zaun atteint son apogée technologique.", 
+      image: "/campaigns/runeterra.png",
+      suggested_classes: ["Combattant", "Mage", "Assassin", "Tireur", "Ingénieur Hextech", "Moine", "Protecteur"],
+      suggested_races: ["Humain", "Yordle", "Vastaya", "Augmenté", "Golem", "Créature du Néant"]
+    },
+    { 
+      id: 'legacy-4', 
+      title: "Wall Maria", 
+      type: "Attack on Titan", 
+      description: "Face à l'immensité des Titans, l'humanité joue sa dernière carte au crépuscule.", 
+      image: "/campaigns/snk.png",
+      suggested_classes: ["Soldat du Bataillon d'Exploration", "Garde de la Garnison", "Membre des Brigades Spéciales", "Tacticien de Siège", "Médecin de Campagne", "Ingénieur de Manœuvre"],
+      suggested_races: ["Humain des Murs", "Réfugié de Maria", "Noble de la Capitale", "Sujet d'Ymir"]
+    },
+    { 
+      id: 'legacy-5', 
+      title: "Forgotten Realms", 
+      type: "D&D Classic", 
+      description: "Les anciens wyrms se réveillent pour réclamer leur héritage de feu et de sang.", 
+      image: "/campaigns/dnd.png",
+      suggested_classes: ["Guerrier", "Magicien", "Roublard", "Clerc", "Paladin", "Rôdeur", "Barde", "Druide", "Sorcier", "Moine"],
+      suggested_races: ["Humain", "Elfe", "Nain", "Halfelin", "Drakéide", "Tieffelin", "Gnome", "Demi-Orc"]
+    }
   ]
 
   const handleStartAdventure = (campaign, character) => {
@@ -235,12 +275,24 @@ function App() {
       if (existingChar) {
         handleStartAdventure(camp, existingChar)
       } else {
-        setCurrentCampaignId(camp.id)
-        const worldData = await db.campaigns.get(camp.id)
+        let worldData = null;
+        try {
+          if (!camp.isLegacy) {
+            worldData = await db.campaigns.get(camp.id)
+          }
+        } catch (e) {
+          console.warn("Could not fetch campaign from DB, might be legacy", e)
+        }
+        
+        // On essaye de trouver les données dans les legacy worlds par titre
+        const legacy = legacyWorlds.find(w => w.title === (worldData?.name || camp.title || camp.name))
+        
         setCurrentWorldContext({
           archetype: { 
-            title: worldData.worlds?.[0]?.archetype || 'Classic Fantasy', 
-            style_guide_dvc: worldData.worlds?.[0]?.style_guide_dvc || 'Style épique D&D' 
+            title: worldData?.worlds?.[0]?.archetype || legacy?.title || 'Classic Fantasy', 
+            style_guide_dvc: worldData?.worlds?.[0]?.style_guide_dvc || 'Style épique D&D',
+            suggested_classes: worldData?.worlds?.[0]?.suggested_classes || legacy?.suggested_classes || ["Guerrier", "Magicien", "Roublard", "Clerc"],
+            suggested_races: worldData?.worlds?.[0]?.suggested_races || legacy?.suggested_races || ["Humain", "Elfe", "Nain"]
           },
           campaignId: camp.id
         })
@@ -265,7 +317,17 @@ function App() {
           .eq('campaign_id', camp.id)
           .maybeSingle();
           
-        setCurrentWorldContext(worldData);
+        const legacy = legacyWorlds.find(w => w.title === (camp.title || camp.name))
+
+        setCurrentWorldContext({
+          archetype: {
+            ...worldData,
+            title: worldData?.archetype || camp.title || 'Monde Inconnu',
+            suggested_classes: worldData?.suggested_classes || legacy?.suggested_classes || ["Guerrier", "Magicien", "Roublard", "Clerc"],
+            suggested_races: worldData?.suggested_races || legacy?.suggested_races || ["Humain", "Elfe", "Nain"]
+          },
+          campaignId: camp.id
+        });
         setCurrentCampaignId(camp.id);
         
         // On vérifie si l'utilisateur a déjà un perso

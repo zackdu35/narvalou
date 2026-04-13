@@ -44,9 +44,18 @@ async function generateAIContent(systemPrompt, userPrompt) {
 export const aiService = {
   async generateArchetypes(seed) {
     const systemPrompt = `Tu es l'Architecte de Narvalou. Basé sur la "semence" (seed) de l'utilisateur, propose 3 archétypes de mondes uniques et évocateurs.
+    Pour chaque archétype, propose également une liste de 5 à 8 classes (Voies) spécifiques et cohérentes avec l'univers (ex: pour un monde pirate: Flibustier, Quartier-Maître, Shaman des Mers...).
     Réponds EXCLUSIVEMENT en JSON sous ce format :
     [
-      { "id": "unique-id", "title": "Titre", "description": "Description immersive", "tone": "Le ton", "danger": "Niveau" },
+      { 
+        "id": "unique-id", 
+        "title": "Titre", 
+        "description": "Description immersive", 
+        "tone": "Le ton", 
+        "danger": "Niveau",
+        "suggested_classes": ["Classe 1", "Classe 2", ...],
+        "suggested_races": ["Race 1", "Race 2", ...]
+      },
       ...
     ]`;
     return generateAIContent(systemPrompt, seed);

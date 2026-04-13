@@ -191,26 +191,39 @@ export default function CharacterCreation({ isOpen, onClose, worldContext, onCom
                     value={customData.name}
                     onChange={(e) => setCustomData({...customData, name: e.target.value})}
                     className="sheet-input-name"
+                    style={{ fontSize: 'clamp(1.2rem, 2.5vw, 1.8rem)' }}
                   />
                 </div>
                 <div className="sheet-meta-grid">
                   <div className="meta-box">
                     <label>Origine / Race</label>
-                    <input 
-                      type="text" 
+                    <select 
                       value={customData.race}
-                      onChange={(e) => setCustomData({...customData, race: e.target.value})}
-                      placeholder="Humain..."
-                    />
+                      onChange={(e) => {
+                        setCustomData({...customData, race: e.target.value})
+                      }}
+                      className="sheet-select"
+                    >
+                      <option value="" disabled>Choisir une Origine...</option>
+                      {(worldContext?.archetype?.suggested_races || worldContext?.suggested_races || ["Humain", "Elfe", "Nain"]).map(r => (
+                        <option key={r} value={r}>{r}</option>
+                      ))}
+                    </select>
                   </div>
-                  <div className="meta-box">
+                   <div className="meta-box">
                     <label>Voie / Classe</label>
-                    <input 
-                      type="text" 
+                    <select 
                       value={customData.class}
-                      onChange={(e) => setCustomData({...customData, class: e.target.value})}
-                      placeholder="Guerrier..."
-                    />
+                      onChange={(e) => {
+                        setCustomData({...customData, class: e.target.value})
+                      }}
+                      className="sheet-select"
+                    >
+                      <option value="" disabled>Choisir une Voie...</option>
+                      {(worldContext?.archetype?.suggested_classes || worldContext?.suggested_classes || ["Guerrier", "Magicien", "Roublard", "Clerc"]).map(cls => (
+                        <option key={cls} value={cls}>{cls}</option>
+                      ))}
+                    </select>
                   </div>
                   <div className="meta-box">
                     <label>Niveau</label>

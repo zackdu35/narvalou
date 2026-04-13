@@ -124,7 +124,9 @@ export default function GenesisInterface({ isOpen, onClose, onStartAdventure }) 
           campaign_id: campaign.id,
           archetype: selectedArchetype.title,
           lore_summary: selectedArchetype.description,
-          style_guide_dvc: `Style optimisé pour ${selectedArchetype.title}. Atmosphère épique.`
+          style_guide_dvc: `Style optimisé pour ${selectedArchetype.title}. Atmosphère épique.`,
+          suggested_classes: selectedArchetype.suggested_classes,
+          suggested_races: selectedArchetype.suggested_races
         }])
         .select()
         .single()
@@ -144,6 +146,14 @@ export default function GenesisInterface({ isOpen, onClose, onStartAdventure }) 
       addLog('Univers cristallisé dans la base de données.', 'info')
       setStep('complete')
       addLog('Genèse terminée avec succès.', 'info')
+      
+      // On enrichit l'archetype avec les classes suggérées pour le CharacterCreation
+      const enrichedArchetype = {
+        ...selectedArchetype,
+        suggested_classes: selectedArchetype.suggested_classes || ["Guerrier", "Magicien", "Roublard", "Clerc"]
+      }
+      setSelectedArchetype(enrichedArchetype)
+
     } catch (err) {
       console.error(err)
       addLog('Erreur lors de la sauvegarde de l\'univers.', 'error')
