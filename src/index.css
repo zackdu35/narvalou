@@ -2916,6 +2916,22 @@ body::before {
   color: #f472b6 !important;
 }
 
+/* --- OOC Messages (Purple /dm) --- */
+.ooc-msg {
+  background: rgba(139, 92, 246, 0.06) !important;
+  border-left: 2px solid rgba(139, 92, 246, 0.4) !important;
+  padding: 8px 12px !important;
+  border-radius: 4px !important;
+  margin: 4px 0;
+  font-style: italic;
+  opacity: 0.85;
+}
+
+.msg-sender.ooc {
+  color: #a78bfa !important;
+  font-weight: 600;
+}
+
 /* ========================================
    CHARACTER SHEET MODAL
    ======================================== */

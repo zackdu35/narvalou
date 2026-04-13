@@ -219,7 +219,7 @@ export default function LiveSession({ campaign, character, session, onExit }) {
         if (exists) return prev
         return [...prev, {
           id: newLog.id,
-          role: newLog.type === 'narration' ? 'mj' : newLog.type === 'system' ? 'system' : newLog.type === 'whisper' ? 'whisper' : 'user',
+          role: newLog.type === 'narration' ? 'mj' : newLog.type === 'system' ? 'system' : newLog.type === 'whisper' ? 'whisper' : newLog.type === 'ooc' ? 'ooc' : 'user',
           content: newLog.content,
           sender: newLog.sender_name,
           metadata: newLog.metadata
@@ -315,7 +315,7 @@ export default function LiveSession({ campaign, character, session, onExit }) {
       if (logs.length > 0) {
         setMessages(logs.map(log => ({
           id: log.id,
-          role: log.type === 'narration' ? 'mj' : log.type === 'system' ? 'system' : log.type === 'whisper' ? 'whisper' : 'user',
+          role: log.type === 'narration' ? 'mj' : log.type === 'system' ? 'system' : log.type === 'whisper' ? 'whisper' : log.type === 'ooc' ? 'ooc' : 'user',
           content: log.content,
           sender: log.sender_name,
           metadata: log.metadata
@@ -571,6 +571,9 @@ export default function LiveSession({ campaign, character, session, onExit }) {
 
       case '/dm': {
         if (!args) { addSystemMessage('Usage: /dm [question hors-RP]'); return true }
+        // Persist OOC question so it's visible to everyone
+        await db.logs.add(campaign.id, 'ooc', args, character.name)
+        
         setLoading(true)
         try {
           const response = await aiService.generateResponse(campaign, character, messages.slice(-8).map(m => ({ role: m.role === 'mj' ? 'model' : 'user', content: `${m.sender}: ${m.content}` })), `[QUESTION HORS-RP de ${character.name}] ${args}.`, groupMembers)
@@ -867,9 +870,9 @@ export default function LiveSession({ campaign, character, session, onExit }) {
 
           <div className="chat-messages" ref={chatContainerRef}>
             {messages.map((msg, i) => (
-              <div key={msg.id || i} className={`live-chat-msg ${msg.role === 'system' ? 'system-msg-inline' : ''} ${msg.role === 'whisper' ? 'whisper-msg' : ''}`}>
-                <span className={`msg-sender ${msg.role === 'mj' ? 'mj' : msg.role === 'system' ? 'system' : msg.role === 'whisper' ? 'whisper' : ''}`}>
-                  {msg.role === 'whisper' ? `🤫 ${msg.sender}` : msg.sender}:
+              <div key={msg.id || i} className={`live-chat-msg ${msg.role === 'system' ? 'system-msg-inline' : ''} ${msg.role === 'whisper' ? 'whisper-msg' : ''} ${msg.role === 'ooc' ? 'ooc-msg' : ''}`}>
+                <span className={`msg-sender ${msg.role === 'mj' ? 'mj' : msg.role === 'system' ? 'system' : msg.role === 'whisper' ? 'whisper' : msg.role === 'ooc' ? 'ooc' : ''}`}>
+                  {msg.role === 'whisper' ? `🤫 ${msg.sender}` : msg.role === 'ooc' ? `💬 [HORS-RP] ${msg.sender}` : msg.sender}:
                 </span>{' '}
                 {msg.content}
               </div>
