@@ -226,12 +226,20 @@ export default function LiveSession({ campaign, character, session, onExit }) {
         }]
       })
 
-      // If this is a narration log, update scene metadata for ALL clients
+      // If this is a narration log, reset readiness for NEW turn
       if (newLog.type === 'narration') {
+        setReadyPlayers({})
+        setPendingActions({})
         setNarrationText(newLog.content)
         if (newLog.metadata?.location) setLocation(newLog.metadata.location)
         if (newLog.metadata?.time_of_day) setTimeOfDay(newLog.metadata.time_of_day)
         if (newLog.metadata?.scene_mood) setSceneMood(newLog.metadata.scene_mood)
+      }
+
+      // If this is an action log, mark player as ready
+      if (newLog.metadata?.is_action && newLog.metadata?.character_id) {
+        setReadyPlayers(prev => ({ ...prev, [newLog.metadata.character_id]: true }))
+        setPendingActions(prev => ({ ...prev, [newLog.metadata.character_id]: newLog.content }))
       }
     })
     return () => supabase.removeChannel(channel)
@@ -254,13 +262,12 @@ export default function LiveSession({ campaign, character, session, onExit }) {
     return () => supabase.removeChannel(channel)
   }, [campaignId])
 
-  // Realtime: game state (ready_players, pending_actions, quests, scene_image, image_gen, metadata)
+  // Realtime: game state (quests, scene_image, image_gen, metadata)
   useEffect(() => {
     if (!campaignId) return
     const channel = db.realtime.subscribeGameState(campaignId, (payload) => {
       const state = payload.new
-      if (state?.metadata?.ready_players) setReadyPlayers(state.metadata.ready_players)
-      if (state?.metadata?.pending_actions) setPendingActions(state.metadata.pending_actions)
+      // We no longer rely on game_state for ready_players/pending_actions to avoid race conditions
       if (state?.metadata?.quests) setQuests(state.metadata.quests)
       // Shared scene image — update for all clients
       if (state?.metadata?.scene_image_url) setSceneImage(state.metadata.scene_image_url)
@@ -313,13 +320,26 @@ export default function LiveSession({ campaign, character, session, onExit }) {
           sender: log.sender_name,
           metadata: log.metadata
         })))
-        const lastMjMsg = [...logs].reverse().find(l => l.type === 'narration')
-        if (lastMjMsg?.metadata) {
-          if (lastMjMsg.metadata.location) setLocation(lastMjMsg.metadata.location)
-          if (lastMjMsg.metadata.time_of_day) setTimeOfDay(lastMjMsg.metadata.time_of_day)
-          if (lastMjMsg.metadata.scene_mood) setSceneMood(lastMjMsg.metadata.scene_mood)
-        }
-        if (lastMjMsg) setNarrationText(lastMjMsg.content)
+        // Reconstruct local state (metadata and readiness) from history
+        let latestReady = {}
+        let latestActions = {}
+        logs.forEach(log => {
+          if (log.type === 'narration') {
+            latestReady = {}
+            latestActions = {}
+            if (log.metadata) {
+              if (log.metadata.location) setLocation(log.metadata.location)
+              if (log.metadata.time_of_day) setTimeOfDay(log.metadata.time_of_day)
+              if (log.metadata.scene_mood) setSceneMood(log.metadata.scene_mood)
+            }
+            setNarrationText(log.content)
+          } else if (log.metadata?.is_action && log.metadata?.character_id) {
+            latestReady[log.metadata.character_id] = true
+            latestActions[log.metadata.character_id] = log.content
+          }
+        })
+        setReadyPlayers(latestReady)
+        setPendingActions(latestActions)
       }
 
       // Load shared state from game state table
@@ -389,8 +409,6 @@ export default function LiveSession({ campaign, character, session, onExit }) {
     // Update shared game state with new metadata
     db.gameState.update(campaign.id, { 
       metadata: { 
-        pending_actions: pendingActions, 
-        ready_players: readyPlayers, 
         quests, 
         scene_image_url: sceneImage, 
         image_gen_enabled: imageGenEnabled,
@@ -413,8 +431,6 @@ export default function LiveSession({ campaign, character, session, onExit }) {
           // Persist quests in game_state for all clients
           db.gameState.update(campaign.id, { 
             metadata: { 
-              pending_actions: pendingActions, 
-              ready_players: readyPlayers, 
               quests: newQuests, 
               scene_image_url: sceneImage, 
               image_gen_enabled: imageGenEnabled,
@@ -447,8 +463,6 @@ export default function LiveSession({ campaign, character, session, onExit }) {
           // Persist scene image in game_state → Realtime sends to all clients
           db.gameState.update(campaign.id, { 
             metadata: { 
-              pending_actions: pendingActions, 
-              ready_players: readyPlayers, 
               quests, 
               scene_image_url: imageUrl, 
               image_gen_enabled: imageGenEnabled,
@@ -583,7 +597,7 @@ export default function LiveSession({ campaign, character, session, onExit }) {
         setImageGenEnabled(newState)
         addSystemMessage(newState ? '🖼️ Génération d\'images activée.' : '🚫 Génération d\'images désactivée.')
         // Persist to game_state → Realtime broadcasts to all clients
-        db.gameState.update(campaign.id, { metadata: { pending_actions: pendingActions, ready_players: readyPlayers, quests, scene_image_url: sceneImage, image_gen_enabled: newState } })
+        db.gameState.update(campaign.id, { metadata: { quests, scene_image_url: sceneImage, image_gen_enabled: newState, location, time_of_day: timeOfDay, scene_mood: sceneMood } })
           .catch(err => console.warn('[Game State] img toggle failed:', err.message))
         return true
       }
@@ -605,27 +619,32 @@ export default function LiveSession({ campaign, character, session, onExit }) {
   const submitAction = async (actionText) => {
     if (!actionText?.trim() || !character?.id) return
 
-    const newPending = { ...pendingActions, [character.id]: actionText.trim() }
-    const newReady = { ...readyPlayers, [character.id]: true }
-
-    setPendingActions(newPending)
-    setReadyPlayers(newReady)
-
-    db.gameState.update(campaign.id, { metadata: { pending_actions: newPending, ready_players: newReady, quests, scene_image_url: sceneImage, image_gen_enabled: imageGenEnabled } })
-      .catch(err => console.warn('[Game State] RLS blocked:', err.message))
+    // Persist as a chat log with "is_action" metadata
+    // This triggers Realtime for everyone and avoids JSONB merge race conditions
+    await db.logs.add(campaign.id, 'chat', actionText.trim(), character.name, { 
+      is_action: true, 
+      character_id: character.id 
+    })
 
     addSystemMessage(`✅ ${character.name} a soumis son action.`)
-
-    const allReady = groupMembers.every(m => newReady[m.id])
-    const isAdmin = campaign.admin_id === session.id
-    
-    // Only the MJ (admin) resolves collective actions to prevent duplicate AI logic
-    if (allReady && groupMembers.length > 0 && isAdmin) {
-      await resolveCollectiveActions(newPending)
-    } else if (allReady && groupMembers.length > 0 && !isAdmin) {
-      addSystemMessage('⌛ En attente du Maître du Monde pour la résolution...')
-    }
   }
+
+  // Effect to auto-calculate allReady and trigger resolution (admin only)
+  useEffect(() => {
+    if (groupMembers.length === 0) return
+    const allReady = groupMembers.every(m => readyPlayers[m.id])
+    const isAdmin = campaign.admin_id === session.id
+
+    if (allReady && isAdmin && !loading) {
+      resolveCollectiveActions(pendingActions)
+    } else if (allReady && !isAdmin) {
+      // Just a hint for non-admins
+      const hasSystemWaiting = messages.some(m => m.role === 'system' && m.content.includes('En attente du Maître'))
+      if (!hasSystemWaiting) {
+        addSystemMessage('⌛ En attente du Maître du Monde pour la résolution...')
+      }
+    }
+  }, [readyPlayers, groupMembers, campaign.admin_id, session.id])
 
   const resolveCollectiveActions = async (actions) => {
     addSystemMessage('⚔️ Tous les héros sont prêts ! Résolution du tour...')
@@ -646,8 +665,6 @@ export default function LiveSession({ campaign, character, session, onExit }) {
       setPendingActions({})
       db.gameState.update(campaign.id, { 
         metadata: { 
-          pending_actions: {}, 
-          ready_players: {}, 
           quests, 
           scene_image_url: sceneImage, 
           image_gen_enabled: imageGenEnabled,
@@ -678,14 +695,11 @@ export default function LiveSession({ campaign, character, session, onExit }) {
     // If player hasn't submitted a turn action yet, treat as action
     const playerIsReadyNow = readyPlayers[character?.id]
     if (!playerIsReadyNow) {
-      // Persist to DB → Realtime broadcasts to ALL clients (including self)
-      try { await db.logs.add(campaign.id, 'chat', userMsg, character.name) } catch {}
       await submitAction(userMsg)
       return
     }
 
     // Already submitted action — this is just chat/RP
-    // Persist to DB → Realtime broadcasts to ALL clients (including self)
     try { await db.logs.add(campaign.id, 'chat', userMsg, character.name) } catch {}
 
     setLoading(true)
@@ -842,7 +856,7 @@ export default function LiveSession({ campaign, character, session, onExit }) {
                 setImageGenEnabled(newState)
                 addSystemMessage(newState ? '🖼️ Génération d\'images activée.' : '🚫 Génération d\'images désactivée.')
                 // Persist toggle in game_state → Realtime broadcasts to all clients
-                db.gameState.update(campaign.id, { metadata: { pending_actions: pendingActions, ready_players: readyPlayers, quests, scene_image_url: sceneImage, image_gen_enabled: newState } })
+                db.gameState.update(campaign.id, { metadata: { quests, scene_image_url: sceneImage, image_gen_enabled: newState, location, time_of_day: timeOfDay, scene_mood: sceneMood } })
                   .catch(err => console.warn('[Game State] img toggle failed:', err.message))
               }}>
                 {imageGenEnabled ? <ImageIcon size={16} /> : <ImageOff size={16} />}
