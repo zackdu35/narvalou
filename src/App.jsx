@@ -164,8 +164,67 @@ function GameInterface({ campaign, character, onExit }) {
   )
 }
 
+function PasswordGuard({ onUnlock }) {
+  const [input, setInput] = useState('');
+  const [error, setError] = useState(false);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (input === 'pleven123') {
+      localStorage.setItem('site_unlocked', 'true');
+      onUnlock();
+    } else {
+      setError(true);
+      setInput('');
+      setTimeout(() => setError(false), 2000);
+    }
+  };
+
+  return (
+    <div className="password-guard">
+      <div className="password-guard-overlay" />
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="text-center z-10"
+      >
+        <div className="premium-title-group mb-12">
+          <h1 style={{ fontSize: '3rem' }}>Halt Avanturier !</h1>
+          <p className="subtitle">L'Accès est Réservé</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="password-input-group">
+          <input 
+            type="password"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            className="password-input"
+            autoFocus
+            placeholder="········"
+          />
+          <AnimatePresence>
+            {error && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="password-error"
+              >
+                Accès refusé. Le destin n'est pas encore écrit.
+              </motion.div>
+            )}
+          </AnimatePresence>
+          <div className="password-hint">Entrez le mot de passe pour franchir le seuil</div>
+        </form>
+      </motion.div>
+    </div>
+  );
+}
+
 function App() {
+  const [isUnlocked, setIsUnlocked] = useState(localStorage.getItem('site_unlocked') === 'true')
   const [session, setSession] = useState(null)
+
   const [view, setView] = useState('lobby') // 'lobby', 'create', 'join', 'game'
   const [campaigns, setCampaigns] = useState([])
   const [userCharacters, setUserCharacters] = useState([])
@@ -356,6 +415,8 @@ function App() {
     setSession(null)
     setView('lobby')
   }
+
+  if (!isUnlocked) return <PasswordGuard onUnlock={() => setIsUnlocked(true)} />
 
   if (loading) return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center relative overflow-hidden">

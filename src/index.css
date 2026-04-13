@@ -1,4 +1,72 @@
 :root {
+/* Password Guard */
+.password-guard {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: var(--bg-black);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.password-guard-overlay {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(212, 175, 55, 0.05) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.password-input-group {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  margin-top: 3rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.password-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid rgba(212, 175, 55, 0.2);
+  padding: 1rem 0;
+  color: #fff;
+  font-family: var(--font-serif);
+  font-size: 2.5rem;
+  text-align: center;
+  letter-spacing: 0.2em;
+  outline: none;
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.password-input:focus {
+  border-bottom-color: var(--gold);
+  letter-spacing: 0.4em;
+}
+
+.password-hint {
+  margin-top: 2rem;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.4em;
+  color: rgba(212, 175, 55, 0.4);
+  font-weight: 800;
+}
+
+.password-error {
+  margin-top: 1rem;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: #ef4444;
+  opacity: 0.8;
+}
+
   --gold: #D4AF37;
   --gold-bright: #F9E076;
   --bg-black: #050505;
