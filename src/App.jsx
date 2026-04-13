@@ -313,7 +313,7 @@ function App() {
         // On récupère le monde associé pour avoir le contexte AI
         const { data: worldData } = await db.supabase
           .from('worlds')
-          .select('*, archetypes(*)')
+          .select('*')
           .eq('campaign_id', camp.id)
           .maybeSingle();
           

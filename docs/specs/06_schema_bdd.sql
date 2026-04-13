@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS public.worlds (
     color_palette JSONB DEFAULT '[]'::jsonb,
     cover_image_url TEXT,
     lore_summary TEXT, -- Résumé global du lore
+    suggested_classes JSONB DEFAULT '[]'::jsonb,
+    suggested_races JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
