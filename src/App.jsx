@@ -7,6 +7,7 @@ import LiveSession from './components/LiveSession'
 import Auth from './components/Auth'
 import { db, supabase } from './services/supabase'
 import { aiService } from './services/ai'
+import { CONFIG } from './config'
 
 
 function CampaignCard({ id, title, description, image, type, onPlay, isJoined, btnLabel, showCode }) {
@@ -170,7 +171,7 @@ function PasswordGuard({ onUnlock }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (input === 'pleven123') {
+    if (input === CONFIG.SITE_PASSWORD) {
       localStorage.setItem('site_unlocked', 'true');
       onUnlock();
     } else {
