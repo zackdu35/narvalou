@@ -181,7 +181,7 @@ export default function LiveSession({ campaign, character, session, onExit }) {
   const [pendingDice, setPendingDice] = useState([])
   const [pendingActions, setPendingActions] = useState({})
   const [readyPlayers, setReadyPlayers] = useState({})
-  const [imageGenEnabled, setImageGenEnabled] = useState(true)
+  const [imageGenEnabled, setImageGenEnabled] = useState(true) // shared across players via game_state
   const [selectedChar, setSelectedChar] = useState(null)
   const [quests, setQuests] = useState([])
   const [showMap, setShowMap] = useState(false)
@@ -209,7 +209,7 @@ export default function LiveSession({ campaign, character, session, onExit }) {
     }
   }, [groupMembers])
 
-  // Realtime: new logs
+  // Realtime: new logs — ALL message display goes through here
   useEffect(() => {
     if (!campaignId) return
     const channel = db.logs.subscribe(campaignId, (payload) => {
@@ -225,21 +225,36 @@ export default function LiveSession({ campaign, character, session, onExit }) {
           metadata: newLog.metadata
         }]
       })
+
+      // If this is a narration log, update scene metadata for ALL clients
+      if (newLog.type === 'narration') {
+        setNarrationText(newLog.content)
+        if (newLog.metadata?.location) setLocation(newLog.metadata.location)
+        if (newLog.metadata?.time_of_day) setTimeOfDay(newLog.metadata.time_of_day)
+        if (newLog.metadata?.scene_mood) setSceneMood(newLog.metadata.scene_mood)
+      }
     })
     return () => supabase.removeChannel(channel)
   }, [campaignId])
 
-  // Realtime: character PV
+  // Realtime: character PV and new members
   useEffect(() => {
     if (!campaignId) return
     const channel = db.realtime.subscribeCharacters(campaignId, (payload) => {
       const updated = payload.new
-      setGroupMembers(prev => prev.map(m => m.id === updated.id ? { ...m, ...updated } : m))
+      if (payload.eventType === 'INSERT') {
+        setGroupMembers(prev => {
+          if (prev.some(m => m.id === updated.id)) return prev
+          return [...prev, updated]
+        })
+      } else {
+        setGroupMembers(prev => prev.map(m => m.id === updated.id ? { ...m, ...updated } : m))
+      }
     })
     return () => supabase.removeChannel(channel)
   }, [campaignId])
 
-  // Realtime: game state
+  // Realtime: game state (ready_players, pending_actions, quests, scene_image, image_gen, metadata)
   useEffect(() => {
     if (!campaignId) return
     const channel = db.realtime.subscribeGameState(campaignId, (payload) => {
@@ -247,6 +262,15 @@ export default function LiveSession({ campaign, character, session, onExit }) {
       if (state?.metadata?.ready_players) setReadyPlayers(state.metadata.ready_players)
       if (state?.metadata?.pending_actions) setPendingActions(state.metadata.pending_actions)
       if (state?.metadata?.quests) setQuests(state.metadata.quests)
+      // Shared scene image — update for all clients
+      if (state?.metadata?.scene_image_url) setSceneImage(state.metadata.scene_image_url)
+      // Shared image generation toggle
+      if (state?.metadata?.image_gen_enabled !== undefined) setImageGenEnabled(state.metadata.image_gen_enabled)
+      
+      // Shared world metadata
+      if (state?.metadata?.location) setLocation(state.metadata.location)
+      if (state?.metadata?.time_of_day) setTimeOfDay(state.metadata.time_of_day)
+      if (state?.metadata?.scene_mood) setSceneMood(state.metadata.scene_mood)
     })
     return () => supabase.removeChannel(channel)
   }, [campaignId])
@@ -298,10 +322,16 @@ export default function LiveSession({ campaign, character, session, onExit }) {
         if (lastMjMsg) setNarrationText(lastMjMsg.content)
       }
 
-      // Load quests from game state
+      // Load shared state from game state table
       try {
         const state = await db.gameState.get(campaign.id)
         if (state?.metadata?.quests) setQuests(state.metadata.quests)
+        if (state?.metadata?.scene_image_url) setSceneImage(state.metadata.scene_image_url)
+        if (state?.metadata?.image_gen_enabled !== undefined) setImageGenEnabled(state.metadata.image_gen_enabled)
+        
+        if (state?.metadata?.location) setLocation(state.metadata.location)
+        if (state?.metadata?.time_of_day) setTimeOfDay(state.metadata.time_of_day)
+        if (state?.metadata?.scene_mood) setSceneMood(state.metadata.scene_mood)
       } catch (e) { /* no game state yet */ }
     } catch (err) {
       console.error('Error loading chat history:', err)
@@ -346,46 +376,57 @@ export default function LiveSession({ campaign, character, session, onExit }) {
 
   // --- Core: Process AI Response ---
   // skipImage = true to prevent image gen on initial narration / double gen
+  // This function runs ONLY on the client that triggered the AI call.
+  // Other clients receive the narration via Realtime (game_logs INSERT).
   const processAIResponse = async (response, skipImage = false) => {
-    const mjMsg = {
-      id: `mj-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      role: 'mj',
-      content: response.content,
-      sender: response.sender || 'Architecte MJ'
-    }
-    setMessages(prev => [...prev, mjMsg])
-    setNarrationText(response.content)
-
-    if (response.location) setLocation(response.location)
-    if (response.time_of_day) setTimeOfDay(response.time_of_day)
-    if (response.scene_mood) setSceneMood(response.scene_mood)
-
-    // Persist
+    // Persist narration log → Realtime will broadcast to ALL clients (including self)
     await db.logs.add(campaign.id, 'narration', response.content, response.sender || 'Architecte MJ', {
       location: response.location,
       time_of_day: response.time_of_day,
       scene_mood: response.scene_mood
     })
 
-    // Function calls
+    // Update shared game state with new metadata
+    db.gameState.update(campaign.id, { 
+      metadata: { 
+        pending_actions: pendingActions, 
+        ready_players: readyPlayers, 
+        quests, 
+        scene_image_url: sceneImage, 
+        image_gen_enabled: imageGenEnabled,
+        location: response.location || location,
+        time_of_day: response.time_of_day || timeOfDay,
+        scene_mood: response.scene_mood || sceneMood
+      } 
+    }).catch(err => console.warn('[Game State] metadata update failed:', err.message))
+
+    // Function calls (stat updates, items, etc.)
     if (response.function_calls?.length > 0) {
       for (const call of response.function_calls) {
         const result = await db.executeFunctionCall(call, campaign.id, groupMembers)
-        setMessages(prev => [...prev, {
-          id: `fc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-          role: 'system',
-          content: `${getFCLabel(call.name)}: ${getFCDescription(call, result)}`,
-          sender: 'Système'
-        }])
+        // Persist function call result as a system log → Realtime broadcasts it
+        await db.logs.add(campaign.id, 'system', `${getFCLabel(call.name)}: ${getFCDescription(call, result)}`, 'Système')
 
         if (call.name === 'update_lore_entry' && call.args?.category === 'quête') {
-          setQuests(prev => [...prev.filter(q => q.key !== call.args.key), { key: call.args.key, details: call.args.details, done: false }])
+          const newQuests = [...quests.filter(q => q.key !== call.args.key), { key: call.args.key, details: call.args.details, done: false }]
+          setQuests(newQuests)
+          // Persist quests in game_state for all clients
+          db.gameState.update(campaign.id, { 
+            metadata: { 
+              pending_actions: pendingActions, 
+              ready_players: readyPlayers, 
+              quests: newQuests, 
+              scene_image_url: sceneImage, 
+              image_gen_enabled: imageGenEnabled,
+              location, time_of_day: timeOfDay, scene_mood: sceneMood
+            } 
+          }).catch(err => console.warn('[Game State] quest update failed:', err.message))
         }
       }
       await loadGroupMembers()
     }
 
-    // Dice requests
+    // Dice requests (still local-only, as each player sees their own dice prompt)
     if (response.dice_requests?.length > 0) {
       setPendingDice(prev => [...prev, ...response.dice_requests.map((dr, i) => ({
         ...dr,
@@ -393,7 +434,7 @@ export default function LiveSession({ campaign, character, session, onExit }) {
       }))])
     }
 
-    // Scene image (only if enabled AND not skipped AND no gen already in progress)
+    // Scene image generation — persist URL in game_state so ALL clients see it
     if (imageGenEnabled && !skipImage && response.content && !imageGenInProgress.current) {
       imageGenInProgress.current = true
       aiService.generateSceneImage(
@@ -401,7 +442,20 @@ export default function LiveSession({ campaign, character, session, onExit }) {
         response.location || campaign.name,
         groupMembers
       ).then(imageUrl => {
-        if (imageUrl) setSceneImage(imageUrl)
+        if (imageUrl) {
+          setSceneImage(imageUrl)
+          // Persist scene image in game_state → Realtime sends to all clients
+          db.gameState.update(campaign.id, { 
+            metadata: { 
+              pending_actions: pendingActions, 
+              ready_players: readyPlayers, 
+              quests, 
+              scene_image_url: imageUrl, 
+              image_gen_enabled: imageGenEnabled,
+              location, time_of_day: timeOfDay, scene_mood: sceneMood
+            } 
+          }).catch(err => console.warn('[Game State] scene image update failed:', err.message))
+        }
       }).catch(err => {
         console.warn('[Scene Image] Generation failed:', err.message)
       }).finally(() => {
@@ -436,8 +490,8 @@ export default function LiveSession({ campaign, character, session, onExit }) {
 
     const resultMsg = `🎲 ${character.name} lance ${rollResult.type} pour "${rollResult.reason}": ${rollResult.raw}${rollResult.modifier ? (rollResult.modifier >= 0 ? '+' : '') + rollResult.modifier : ''} = ${rollResult.total}${rollResult.dd ? ` (DD ${rollResult.dd}: ${rollResult.success ? 'Succès ✅' : 'Échec ❌'})` : ''}`
 
+    // Persist dice result → Realtime broadcasts to all clients
     await db.logs.add(campaign.id, 'dice', resultMsg, character.name)
-    setMessages(prev => [...prev, { id: `dr-${Date.now()}`, role: 'system', content: resultMsg, sender: character.name }])
 
     setLoading(true)
     try {
@@ -496,13 +550,7 @@ export default function LiveSession({ campaign, character, session, onExit }) {
       case '/r': {
         // Whisper between players — pink, no AI response
         if (!args) { addSystemMessage('Usage: /r [message entre joueurs]'); return true }
-        const whisperMsg = {
-          id: `whisper-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-          role: 'whisper',
-          content: args,
-          sender: character.name
-        }
-        setMessages(prev => [...prev, whisperMsg])
+        // Persist whisper → Realtime broadcasts to all clients
         await db.logs.add(campaign.id, 'whisper', args, character.name)
         return true
       }
@@ -530,9 +578,13 @@ export default function LiveSession({ campaign, character, session, onExit }) {
       }
 
       case '/img': {
+        // Toggle image generation — shared with all players via game_state
         const newState = !imageGenEnabled
         setImageGenEnabled(newState)
         addSystemMessage(newState ? '🖼️ Génération d\'images activée.' : '🚫 Génération d\'images désactivée.')
+        // Persist to game_state → Realtime broadcasts to all clients
+        db.gameState.update(campaign.id, { metadata: { pending_actions: pendingActions, ready_players: readyPlayers, quests, scene_image_url: sceneImage, image_gen_enabled: newState } })
+          .catch(err => console.warn('[Game State] img toggle failed:', err.message))
         return true
       }
 
@@ -559,14 +611,19 @@ export default function LiveSession({ campaign, character, session, onExit }) {
     setPendingActions(newPending)
     setReadyPlayers(newReady)
 
-    db.gameState.update(campaign.id, { metadata: { pending_actions: newPending, ready_players: newReady, quests } })
+    db.gameState.update(campaign.id, { metadata: { pending_actions: newPending, ready_players: newReady, quests, scene_image_url: sceneImage, image_gen_enabled: imageGenEnabled } })
       .catch(err => console.warn('[Game State] RLS blocked:', err.message))
 
     addSystemMessage(`✅ ${character.name} a soumis son action.`)
 
     const allReady = groupMembers.every(m => newReady[m.id])
-    if (allReady && groupMembers.length > 0) {
+    const isAdmin = campaign.admin_id === session.id
+    
+    // Only the MJ (admin) resolves collective actions to prevent duplicate AI logic
+    if (allReady && groupMembers.length > 0 && isAdmin) {
       await resolveCollectiveActions(newPending)
+    } else if (allReady && groupMembers.length > 0 && !isAdmin) {
+      addSystemMessage('⌛ En attente du Maître du Monde pour la résolution...')
     }
   }
 
@@ -587,8 +644,16 @@ export default function LiveSession({ campaign, character, session, onExit }) {
       await processAIResponse(response)
       setReadyPlayers({})
       setPendingActions({})
-      db.gameState.update(campaign.id, { metadata: { pending_actions: {}, ready_players: {}, quests } })
-        .catch(err => console.warn('[Game State] RLS blocked:', err.message))
+      db.gameState.update(campaign.id, { 
+        metadata: { 
+          pending_actions: {}, 
+          ready_players: {}, 
+          quests, 
+          scene_image_url: sceneImage, 
+          image_gen_enabled: imageGenEnabled,
+          location, time_of_day: timeOfDay, scene_mood: sceneMood
+        } 
+      }).catch(err => console.warn('[Game State] RLS blocked:', err.message))
     } catch (err) {
       console.error('Error resolving:', err)
       addSystemMessage('❌ Erreur lors de la résolution.')
@@ -613,15 +678,14 @@ export default function LiveSession({ campaign, character, session, onExit }) {
     // If player hasn't submitted a turn action yet, treat as action
     const playerIsReadyNow = readyPlayers[character?.id]
     if (!playerIsReadyNow) {
-      // Add as user message + submit as action
-      setMessages(prev => [...prev, { id: `local-${Date.now()}`, role: 'user', content: userMsg, sender: character.name }])
+      // Persist to DB → Realtime broadcasts to ALL clients (including self)
       try { await db.logs.add(campaign.id, 'chat', userMsg, character.name) } catch {}
       await submitAction(userMsg)
       return
     }
 
     // Already submitted action — this is just chat/RP
-    setMessages(prev => [...prev, { id: `local-${Date.now()}`, role: 'user', content: userMsg, sender: character.name }])
+    // Persist to DB → Realtime broadcasts to ALL clients (including self)
     try { await db.logs.add(campaign.id, 'chat', userMsg, character.name) } catch {}
 
     setLoading(true)
@@ -773,10 +837,17 @@ export default function LiveSession({ campaign, character, session, onExit }) {
               <span className="ia-badge"><span className="ia-badge-dot" /> IA DM Active</span>
             </div>
             <div className="chat-header-actions">
-              <button className={`chat-action-btn ${imageGenEnabled ? 'active-toggle' : ''}`} title={imageGenEnabled ? 'Images activées' : 'Images désactivées'} onClick={() => { setImageGenEnabled(!imageGenEnabled); addSystemMessage(imageGenEnabled ? '🚫 Images désactivées.' : '🖼️ Images activées.') }}>
+              <button className={`chat-action-btn ${imageGenEnabled ? 'active-toggle' : ''}`} title={imageGenEnabled ? 'Images activées (partagé)' : 'Images désactivées (partagé)'} onClick={() => {
+                const newState = !imageGenEnabled
+                setImageGenEnabled(newState)
+                addSystemMessage(newState ? '🖼️ Génération d\'images activée.' : '🚫 Génération d\'images désactivée.')
+                // Persist toggle in game_state → Realtime broadcasts to all clients
+                db.gameState.update(campaign.id, { metadata: { pending_actions: pendingActions, ready_players: readyPlayers, quests, scene_image_url: sceneImage, image_gen_enabled: newState } })
+                  .catch(err => console.warn('[Game State] img toggle failed:', err.message))
+              }}>
                 {imageGenEnabled ? <ImageIcon size={16} /> : <ImageOff size={16} />}
               </button>
-              <button className="chat-action-btn" title="Son"><Volume2 size={16} /></button>
+              <button className="chat-action-btn" title="Son (personnel)"><Volume2 size={16} /></button>
             </div>
           </div>
 
