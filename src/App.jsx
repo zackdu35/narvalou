@@ -190,7 +190,7 @@ function PasswordGuard({ onUnlock }) {
         className="text-center z-10"
       >
         <div className="premium-title-group mb-12">
-          <h1 style={{ fontSize: '3rem' }}>Halt Avanturier !</h1>
+          <h1 style={{ fontSize: '3rem' }}>Halt Aventurier !</h1>
           <p className="subtitle">L'Accès est Réservé</p>
         </div>
 
