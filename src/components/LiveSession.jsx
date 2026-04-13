@@ -759,6 +759,61 @@ export default function LiveSession({ campaign, character, session, onExit }) {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="live-layout">
       
+      {/* Lobby / Prelude Overlay */}
+      <AnimatePresence>
+        {campaignStatus !== 'active' && (
+          <motion.div 
+            className="lobby-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <div className="lobby-overlay-content">
+              <div className="lobby-ritual-glow" />
+              <h2 className="lobby-prelude-title">Le Prélude</h2>
+              <p className="lobby-prelude-subtitle">
+                {campaign.admin_id === session.id 
+                  ? "Rassemblez vos compagnons. L'univers attend votre signal."
+                  : "Le monde se stabilise... En attente du signal de l'Architecte."}
+              </p>
+
+              <div className="lobby-players-list">
+                <h4 className="text-[10px] uppercase tracking-[0.3em] text-gold/40 mb-6">Âmes Présentes</h4>
+                <div className="flex flex-wrap justify-center gap-4">
+                  {groupMembers.map(m => (
+                    <div key={m.id} className="lobby-player-pill">
+                      <div className="player-pill-avatar">
+                        {m.portrait_url ? <img src={m.portrait_url} alt="" /> : <UserIcon size={12} />}
+                      </div>
+                      <span>{m.name}</span>
+                      <div className="ready-pulse" />
+                    </div>
+                  ))}
+                  {groupMembers.length === 0 && <p className="text-xs opacity-30 italic">Aucun voyageur n'est encore arrivé...</p>}
+                </div>
+              </div>
+
+              {campaign.admin_id === session.id ? (
+                <button 
+                  onClick={handleLaunchAdventure}
+                  disabled={loading}
+                  className="btn-launch-adventure"
+                >
+                  {loading ? "CRISTALLISATION..." : "LANCER L'AVENTURE"}
+                </button>
+              ) : (
+                <div className="lobby-waiting-indicator">
+                  <div className="waiting-spinner" />
+                  <span>PREPARATION EN COURS...</span>
+                </div>
+              )}
+
+              <button className="btn-quit-lobby" onClick={onExit}>QUITTER POUR L'INSTANT</button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Character Sheet Modal */}
       {selectedChar && <CharacterSheetModal char={selectedChar} onClose={() => setSelectedChar(null)} />}
 
