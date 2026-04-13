@@ -287,12 +287,14 @@ function App() {
         // On essaye de trouver les données dans les legacy worlds par titre
         const legacy = legacyWorlds.find(w => w.title === (worldData?.name || camp.title || camp.name))
         
+        const world = worldData?.worlds?.[0]
+        
         setCurrentWorldContext({
           archetype: { 
-            title: worldData?.worlds?.[0]?.archetype || legacy?.title || 'Classic Fantasy', 
-            style_guide_dvc: worldData?.worlds?.[0]?.style_guide_dvc || 'Style épique D&D',
-            suggested_classes: worldData?.worlds?.[0]?.suggested_classes || legacy?.suggested_classes || ["Guerrier", "Magicien", "Roublard", "Clerc"],
-            suggested_races: worldData?.worlds?.[0]?.suggested_races || legacy?.suggested_races || ["Humain", "Elfe", "Nain"]
+            title: world?.archetype || legacy?.title || 'Classic Fantasy', 
+            style_guide_dvc: world?.style_guide_dvc || legacy?.style_guide_dvc || legacy?.type || 'Style épique D&D',
+            suggested_classes: world?.suggested_classes || legacy?.suggested_classes || ["Guerrier", "Magicien", "Roublard", "Clerc"],
+            suggested_races: world?.suggested_races || legacy?.suggested_races || ["Humain", "Elfe", "Nain"]
           },
           campaignId: camp.id
         })
@@ -475,7 +477,12 @@ function App() {
                             
                             setCurrentCampaignId(newCamp.id);
                             setCurrentWorldContext({
-                              archetype: { title: world.title, style_guide_dvc: `Style "${world.type}"` },
+                              archetype: { 
+                                title: world.title, 
+                                style_guide_dvc: `Style "${world.type}"`,
+                                suggested_classes: world.suggested_classes,
+                                suggested_races: world.suggested_races
+                              },
                               campaignId: newCamp.id
                             });
                             setIsCharacterCreationOpen(true);
