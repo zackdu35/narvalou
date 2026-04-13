@@ -353,8 +353,39 @@ function App() {
   }
 
   if (loading) return (
-    <div className="min-h-screen bg-black flex items-center justify-center">
-       <Sparkles className="text-gold animate-pulse" size={48} />
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center relative overflow-hidden">
+       {/* Background Ritual Glow */}
+       <div className="absolute w-[500px] h-[500px] bg-gold/5 rounded-full blur-[120px] animate-pulse" />
+       
+       <div className="relative z-10 flex flex-col items-center gap-12">
+          <motion.div 
+            animate={{ 
+              scale: [1, 1.1, 1],
+              opacity: [0.3, 1, 0.3],
+              rotate: 360
+            }}
+            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+            className="relative"
+          >
+            <Sparkles className="text-gold" size={64} strokeWidth={1} />
+            <div className="absolute inset-0 bg-gold/20 blur-xl rounded-full" />
+          </motion.div>
+
+          <div className="text-center space-y-4">
+             <motion.h2 
+               initial={{ opacity: 0, y: 10 }}
+               animate={{ opacity: 1, y: 0 }}
+               className="text-gold uppercase tracking-[0.8em] text-[10px] font-bold"
+             >
+               Synchronisation Neuronale
+             </motion.h2>
+             <p className="serif text-white/40 italic text-sm tracking-widest">
+                L'Oracle prépare votre destinée...
+             </p>
+          </div>
+       </div>
+
+       {/* Grain effect already in body::before */}
     </div>
   )
 
@@ -556,7 +587,7 @@ function App() {
 
             <div className="campaign-list-container">
               {campaigns.length === 0 ? (
-                <div className="w-full max-w-2xl py-32 text-center border border-dashed border-white/5 rounded-lg">
+                <div className="grid-full mx-auto w-full max-w-2xl py-32 text-center border border-dashed border-white/5 rounded-lg flex flex-col items-center">
                    <p className="text-white/20 uppercase tracking-widest text-xs mb-6">Aucun monde n'a été découvert dans ce plan.</p>
                    <button onClick={() => setView('create')} className="btn-mini primary">Invoquer un monde</button>
                 </div>
