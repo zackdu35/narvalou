@@ -6,6 +6,5 @@ export const CONFIG = {
   },
   GEMINI: {
     API_KEY: import.meta.env.VITE_GEMINI_API_KEY,
-  },
-  IS_DEV: import.meta.env.DEV === 'true',
+  }
 };

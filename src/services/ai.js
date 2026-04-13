@@ -1,6 +1,9 @@
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const MODEL = 'gemini-3-flash-preview';
 
+// Bypass images ONLY if explicit flag is set
+const SKIP_IMAGES = import.meta.env.VITE_SKIP_IMAGES === 'true';
+
 
 async function generateAIContent(systemPrompt, userPrompt) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`;
@@ -86,7 +89,7 @@ export const aiService = {
   },
 
   async suggestCharacterOptions(worldContext) {
-    if (import.meta.env.VITE_SKIP_IMAGES === 'true') {
+    if (SKIP_IMAGES) {
       return [
         { name: "Eldrin", race: "Elfe", class: "Magicien", background: "Sage", description: "Un érudit cherchant des secrets anciens.", stats: { str: 8, dex: 14, con: 12, int: 16, wis: 14, cha: 10 } },
         { name: "Thrain", race: "Nain", class: "Guerrier", background: "Soldat", description: "Un vétéran de nombreuses batailles souterraines.", stats: { str: 16, dex: 10, con: 16, int: 8, wis: 12, cha: 10 } },
@@ -102,7 +105,7 @@ export const aiService = {
   },
 
   async generateCharacterDVC(characterData, worldStyle) {
-    if (import.meta.env.VITE_SKIP_IMAGES === 'true') {
+    if (SKIP_IMAGES) {
       return { dvc: `Un fier ${characterData.race} ${characterData.class} nommé ${characterData.name}${characterData.appearance ? ', ' + characterData.appearance : ''}, prêt pour l'aventure dans un style ${worldStyle}.` };
     }
     const systemPrompt = `Tu es l'Architecte Visuel. Génère une Description Visuelle Courte (DVC) pour ce personnage de D&D.
@@ -191,8 +194,8 @@ export const aiService = {
   },
 
   async generateImage(prompt) {
-    // Skip image gen if env flag is set
-    if (import.meta.env.VITE_SKIP_IMAGES === 'true') {
+    // Skip image gen if env flag is set or in DEV mode
+    if (SKIP_IMAGES) {
       console.log('SKIP_IMAGES: Image generation skipped for prompt:', prompt);
       return "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&q=80&w=1024";
     }
