@@ -60,6 +60,27 @@ export const db = {
         .single()
       if (error) throw error
       return data
+    },
+    update: async (id, updates) => {
+      const { data, error } = await supabase
+        .from('campaigns')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single()
+      if (error) throw error
+      return data
+    },
+    subscribe: (id, callback) => {
+      return supabase
+        .channel(`campaign-${id}`)
+        .on('postgres_changes', { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'campaigns',
+          filter: `id=eq.${id}`
+        }, callback)
+        .subscribe()
     }
   },
 

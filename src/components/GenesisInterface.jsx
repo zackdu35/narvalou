@@ -113,7 +113,8 @@ export default function GenesisInterface({ isOpen, onClose, onStartAdventure }) 
       const campaign = await db.campaigns.create(
         selectedArchetype.title, 
         `Un monde basé sur : ${prompt}`,
-        user.id
+        user.id,
+        { status: 'lobby' }
       )
       setCreatedCampaignId(campaign.id)
       

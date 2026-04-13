@@ -183,6 +183,7 @@ export default function LiveSession({ campaign, character, session, onExit }) {
   const [readyPlayers, setReadyPlayers] = useState({})
   const [imageGenEnabled, setImageGenEnabled] = useState(true) // shared across players via game_state
   const [selectedChar, setSelectedChar] = useState(null)
+  const [campaignStatus, setCampaignStatus] = useState(campaign?.status || 'lobby')
   const [quests, setQuests] = useState([])
   const [showMap, setShowMap] = useState(false)
   const [mapImageUrl, setMapImageUrl] = useState(campaign?.map_url || null)
@@ -202,12 +203,26 @@ export default function LiveSession({ campaign, character, session, onExit }) {
     if (!mapImageUrl) generateMap()
   }, [campaignId])
 
+  // Realtime: campaign status
   useEffect(() => {
-    if (groupMembers.length > 0 && messages.length === 0 && !hasInitialized.current) {
-      hasInitialized.current = true
-      generateInitialNarration()
+    if (!campaignId) return
+    const channel = db.campaigns.subscribe(campaignId, (payload) => {
+      const newStatus = payload.new.status
+      if (newStatus) setCampaignStatus(newStatus)
+    })
+    return () => supabase.removeChannel(channel)
+  }, [campaignId])
+
+  useEffect(() => {
+    if (groupMembers.length > 0 && messages.length === 0 && !hasInitialized.current && campaignStatus === 'active') {
+      const isAdmin = campaign.admin_id === session.id
+      // Seul l'admin déclenche la première narration pour éviter les doublons
+      if (isAdmin) {
+        hasInitialized.current = true
+        generateInitialNarration()
+      }
     }
-  }, [groupMembers])
+  }, [groupMembers, campaignStatus, messages.length])
 
   // Realtime: new logs — ALL message display goes through here
   useEffect(() => {
@@ -715,6 +730,20 @@ export default function LiveSession({ campaign, character, session, onExit }) {
     } catch (err) {
       console.error('AI Error:', err)
       setMessages(prev => [...prev, { id: `err-${Date.now()}`, role: 'mj', content: "L'Oracle est perturbé... Réessayez.", sender: 'Système' }])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleLaunchAdventure = async () => {
+    if (campaign.admin_id !== session.id) return
+    setLoading(true)
+    try {
+      await db.campaigns.update(campaignId, { status: 'active' })
+      setCampaignStatus('active')
+    } catch (err) {
+      console.error('Error launching adventure:', err)
+      addSystemMessage('❌ Impossible de lancer l\'aventure.')
     } finally {
       setLoading(false)
     }
