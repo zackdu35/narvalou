@@ -20,6 +20,15 @@ const SLASH_COMMANDS = {
   '/img': { description: 'Activer/désactiver la génération d\'images' },
 }
 
+const LEGACY_MAPS = {
+  "Hogwarts": "/maps/potter.png",
+  "Azeroth": "/maps/wow.png",
+  "Runeterra": "/maps/runeterra.png",
+  "Wall Maria": "/maps/snk.png",
+  "Forgotten Realms": "/maps/dnd.png"
+}
+
+
 // ==================== HELPERS ====================
 
 function getHpClass(current, max) {
@@ -374,12 +383,22 @@ export default function LiveSession({ campaign, character, session, onExit }) {
   }
 
   const generateMap = async () => {
+    // Check if it's a legacy campaign first
+    const legacyPath = LEGACY_MAPS[campaign.name] || LEGACY_MAPS[campaign.title]
+    if (legacyPath) {
+      setMapImageUrl(legacyPath)
+      // Optional: update DB so we don't even check next time
+      db.campaigns.update(campaign.id, { map_url: legacyPath }).catch(() => {})
+      return
+    }
+
     try {
       const mapUrl = await aiService.generateSceneImage(
         `fantasy world map, top-down view, parchment style, detailed regions, mountains, forests, cities, rivers. World: ${campaign.name}`,
         'medieval fantasy cartography style, antique map, ink on parchment'
       )
       setMapImageUrl(mapUrl)
+      db.campaigns.update(campaign.id, { map_url: mapUrl }).catch(() => {})
     } catch (err) {
       console.warn('[Map] Generation failed:', err.message)
     }

@@ -215,6 +215,7 @@ function App() {
       type: "Wizarding World", 
       description: "Une magie plus ancienne que les fondateurs s'éveille dans les profondeurs de Poudlard.", 
       image: "/campaigns/potter.png",
+      map_url: "/maps/potter.png",
       suggested_classes: ["Sorcier", "Auror", "Botaniste", "Alchimiste", "Magizoologiste", "Professeur", "Mage Noir"],
       suggested_races: ["Sorcier (Sang-Pur)", "Sorcier (Né-Moldu)", "Demi-Géant", "Demi-Vélane"]
     },
@@ -224,6 +225,7 @@ function App() {
       type: "Warcraft", 
       description: "L'ombre du Vide s'étend sur les îles flottantes, menaçant l'équilibre du monde.", 
       image: "/campaigns/wow.png",
+      map_url: "/maps/wow.png",
       suggested_classes: ["Guerrier", "Mage", "Voleur", "Prêtre", "Chasseur", "Paladin", "Chaman", "Druide"],
       suggested_races: ["Humain", "Orc", "Elfe", "Nain", "Mort-Vivant", "Troll", "Tauren", "Gnome"]
     },
@@ -233,6 +235,7 @@ function App() {
       type: "League of Legends", 
       description: "Le conflit entre Piltover et Zaun atteint son apogée technologique.", 
       image: "/campaigns/runeterra.png",
+      map_url: "/maps/runeterra.png",
       suggested_classes: ["Combattant", "Mage", "Assassin", "Tireur", "Ingénieur Hextech", "Moine", "Protecteur"],
       suggested_races: ["Humain", "Yordle", "Vastaya", "Augmenté", "Golem", "Créature du Néant"]
     },
@@ -242,6 +245,7 @@ function App() {
       type: "Attack on Titan", 
       description: "Face à l'immensité des Titans, l'humanité joue sa dernière carte au crépuscule.", 
       image: "/campaigns/snk.png",
+      map_url: "/maps/snk.png",
       suggested_classes: ["Soldat du Bataillon d'Exploration", "Garde de la Garnison", "Membre des Brigades Spéciales", "Tacticien de Siège", "Médecin de Campagne", "Ingénieur de Manœuvre"],
       suggested_races: ["Humain des Murs", "Réfugié de Maria", "Noble de la Capitale", "Sujet d'Ymir"]
     },
@@ -251,6 +255,7 @@ function App() {
       type: "D&D Classic", 
       description: "Les anciens wyrms se réveillent pour réclamer leur héritage de feu et de sang.", 
       image: "/campaigns/dnd.png",
+      map_url: "/maps/dnd.png",
       suggested_classes: ["Guerrier", "Magicien", "Roublard", "Clerc", "Paladin", "Rôdeur", "Barde", "Druide", "Sorcier", "Moine"],
       suggested_races: ["Humain", "Elfe", "Nain", "Halfelin", "Drakéide", "Tieffelin", "Gnome", "Demi-Orc"]
     }
@@ -503,7 +508,8 @@ function App() {
                             // On vérifie le nom de la colonne admin_id vs owner_id
                             const newCamp = await db.campaigns.create(world.title, world.description, session.id, { 
                               status: 'lobby',
-                              image: world.image
+                              image: world.image,
+                              map_url: world.map_url
                             });
                             
                             setCurrentCampaignId(newCamp.id);
