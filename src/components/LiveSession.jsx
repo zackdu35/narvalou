@@ -172,10 +172,10 @@ export default function LiveSession({ campaign, character, session, onExit }) {
   const [loading, setLoading] = useState(false)
   const [groupMembers, setGroupMembers] = useState([])
   const [sceneImage, setSceneImage] = useState(
-    campaign.image || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&q=80&w=1600'
+    campaign?.image || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&q=80&w=1600'
   )
   const [narrationText, setNarrationText] = useState('')
-  const [location, setLocation] = useState(campaign.name || 'Monde Inconnu')
+  const [location, setLocation] = useState(campaign?.name || 'Monde Inconnu')
   const [timeOfDay, setTimeOfDay] = useState('Matin')
   const [sceneMood, setSceneMood] = useState('Calme')
   const [pendingDice, setPendingDice] = useState([])
@@ -185,18 +185,22 @@ export default function LiveSession({ campaign, character, session, onExit }) {
   const [selectedChar, setSelectedChar] = useState(null)
   const [quests, setQuests] = useState([])
   const [showMap, setShowMap] = useState(false)
-  const [mapImageUrl, setMapImageUrl] = useState(campaign.map_url || null)
+  const [mapImageUrl, setMapImageUrl] = useState(campaign?.map_url || null)
   const chatEndRef = useRef(null)
   const chatContainerRef = useRef(null)
   const imageGenInProgress = useRef(false) // prevent double image gen
   const hasInitialized = useRef(false) // prevent double initial narration
 
+  const campaignId = campaign?.id
+  const characterId = character?.id
+
   // --- Effects ---
   useEffect(() => {
+    if (!campaignId) return
     loadGroupMembers()
     loadChatHistory()
     if (!mapImageUrl) generateMap()
-  }, [campaign.id])
+  }, [campaignId])
 
   useEffect(() => {
     if (groupMembers.length > 0 && messages.length === 0 && !hasInitialized.current) {
@@ -207,7 +211,8 @@ export default function LiveSession({ campaign, character, session, onExit }) {
 
   // Realtime: new logs
   useEffect(() => {
-    const channel = db.logs.subscribe(campaign.id, (payload) => {
+    if (!campaignId) return
+    const channel = db.logs.subscribe(campaignId, (payload) => {
       const newLog = payload.new
       setMessages(prev => {
         const exists = prev.some(m => m.id === newLog.id)
@@ -222,32 +227,45 @@ export default function LiveSession({ campaign, character, session, onExit }) {
       })
     })
     return () => supabase.removeChannel(channel)
-  }, [campaign.id])
+  }, [campaignId])
 
   // Realtime: character PV
   useEffect(() => {
-    const channel = db.realtime.subscribeCharacters(campaign.id, (payload) => {
+    if (!campaignId) return
+    const channel = db.realtime.subscribeCharacters(campaignId, (payload) => {
       const updated = payload.new
       setGroupMembers(prev => prev.map(m => m.id === updated.id ? { ...m, ...updated } : m))
     })
     return () => supabase.removeChannel(channel)
-  }, [campaign.id])
+  }, [campaignId])
 
   // Realtime: game state
   useEffect(() => {
-    const channel = db.realtime.subscribeGameState(campaign.id, (payload) => {
+    if (!campaignId) return
+    const channel = db.realtime.subscribeGameState(campaignId, (payload) => {
       const state = payload.new
       if (state?.metadata?.ready_players) setReadyPlayers(state.metadata.ready_players)
       if (state?.metadata?.pending_actions) setPendingActions(state.metadata.pending_actions)
       if (state?.metadata?.quests) setQuests(state.metadata.quests)
     })
     return () => supabase.removeChannel(channel)
-  }, [campaign.id])
+  }, [campaignId])
 
   // Auto-scroll chat
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading, pendingDice])
+
+  // Guard: bail out if campaign or character is not yet loaded
+  if (!campaignId || !characterId) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-gold animate-pulse text-center">
+          <p className="text-xl serif">Chargement de la session...</p>
+        </div>
+      </div>
+    )
+  }
 
   // --- Data Loading ---
   const loadGroupMembers = async () => {
@@ -533,7 +551,7 @@ export default function LiveSession({ campaign, character, session, onExit }) {
 
   // --- Validation Collective (in chat) ---
   const submitAction = async (actionText) => {
-    if (!actionText?.trim()) return
+    if (!actionText?.trim() || !character?.id) return
 
     const newPending = { ...pendingActions, [character.id]: actionText.trim() }
     const newReady = { ...readyPlayers, [character.id]: true }

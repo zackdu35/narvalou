@@ -217,6 +217,11 @@ function App() {
   ]
 
   const handleStartAdventure = (campaign, character) => {
+    if (!campaign || !character) {
+      console.error('[handleStartAdventure] Missing campaign or character', { campaign, character })
+      alert("Erreur : données de campagne ou personnage manquantes. Veuillez réessayer.")
+      return
+    }
     setActiveCampaign(campaign)
     setActiveCharacter(character)
     setView('game')
@@ -536,8 +541,21 @@ function App() {
         worldContext={currentWorldContext}
         campaignId={currentCampaignId}
         onComplete={(char) => {
+          if (!currentCampaignId) {
+            console.error('[onComplete] currentCampaignId is null')
+            alert("Erreur : impossible de retrouver la campagne. Retour au lobby.")
+            setView('lobby')
+            loadData()
+            return
+          }
           db.campaigns.get(currentCampaignId).then(campData => {
             handleStartAdventure(campData, char)
+          }).catch(err => {
+            console.error('[onComplete] Failed to fetch campaign:', err)
+            alert("Erreur lors du chargement de la campagne. Retour au lobby.")
+            setIsCharacterCreationOpen(false)
+            setView('lobby')
+            loadData()
           })
         }}
       />
