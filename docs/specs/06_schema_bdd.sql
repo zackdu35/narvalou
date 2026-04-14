@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS public.campaigns (
     created_at TIMESTAMPTZ DEFAULT now(),
     status TEXT DEFAULT 'genesis', -- 'genesis', 'lobby', 'active', 'finished'
     image TEXT, -- Image de couverture de la campagne
+    map_url TEXT, -- URL de la carte de campagne
     admin_id UUID -- Optionnel: pour lier à un créateur spécifique
 );
 
@@ -115,6 +116,8 @@ CREATE TABLE IF NOT EXISTS public.game_state (
 -- RLS (Row Level Security) - Modèles de base (à affiner selon les besoins d'auth)
 ALTER TABLE public.campaigns ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public read pour les campagnes" ON public.campaigns FOR SELECT USING (true);
+CREATE POLICY "Allow all INSERT campaigns" ON public.campaigns FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow all UPDATE campaigns" ON public.campaigns FOR UPDATE USING (true) WITH CHECK (true);
 -- Pour l'instant on permet tout en lecture pour simplifier le dev (A changer en prod !)
 ALTER TABLE public.worlds ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public SELECT worlds" ON public.worlds FOR SELECT USING (true);
