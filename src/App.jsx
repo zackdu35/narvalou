@@ -363,6 +363,7 @@ function App() {
           },
           campaignId: camp.id
         })
+        setCurrentCampaignId(camp.id)
         setIsCharacterCreationOpen(true)
       }
     } catch (err) {

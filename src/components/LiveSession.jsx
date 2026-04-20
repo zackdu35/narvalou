@@ -216,6 +216,7 @@ export default function LiveSession({ campaign, character, session, onExit }) {
   useEffect(() => {
     if (!campaignId) return
     const channel = db.campaigns.subscribe(campaignId, (payload) => {
+      if (!payload?.new) return
       const newStatus = payload.new.status
       if (newStatus) setCampaignStatus(newStatus)
     })
@@ -237,6 +238,7 @@ export default function LiveSession({ campaign, character, session, onExit }) {
   useEffect(() => {
     if (!campaignId) return
     const channel = db.logs.subscribe(campaignId, (payload) => {
+      if (!payload?.new) return
       const newLog = payload.new
       setMessages(prev => {
         const exists = prev.some(m => m.id === newLog.id)
@@ -273,6 +275,7 @@ export default function LiveSession({ campaign, character, session, onExit }) {
   useEffect(() => {
     if (!campaignId) return
     const channel = db.realtime.subscribeCharacters(campaignId, (payload) => {
+      if (!payload?.new) return
       const updated = payload.new
       if (payload.eventType === 'INSERT') {
         setGroupMembers(prev => {
@@ -290,6 +293,7 @@ export default function LiveSession({ campaign, character, session, onExit }) {
   useEffect(() => {
     if (!campaignId) return
     const channel = db.realtime.subscribeGameState(campaignId, (payload) => {
+      if (!payload?.new) return
       const state = payload.new
       // We no longer rely on game_state for ready_players/pending_actions to avoid race conditions
       if (state?.metadata?.quests) setQuests(state.metadata.quests)
