@@ -204,7 +204,7 @@ export default function LiveSession({ campaign, character, session, onExit }) {
   const campaignId = campaign?.id
   const characterId = character?.id
 
-  // --- Effects ---
+  // -- Effects --
   useEffect(() => {
     if (!campaignId) return
     loadGroupMembers()
